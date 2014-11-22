@@ -4,10 +4,12 @@
 setlocal EnableDelayedExpansion
 
 ::Assign parameters passed to this file to variables with descriptive names
-set rlis_proj=%1
-set export_workspace=%2
-set streets_shp_mod=%3
-set trails_shp_mod=%4
+set or_spn=%1
+set current_export=%2
+set db_name=%3
+set pg_host=%4
+set pg_user=%5
+set pgpassword=%6
 
 ::ogr2osm is the tool that converts data between the shp and .osm formats, assign that tool
 ::and supplemental imputs around that tool to varibles

@@ -4,8 +4,8 @@ setlocal EnableDelayedExpansion
 echo "start time is: %time%"
 
 ::Set postgres parameters
-set pg_host=localhost
 set db_name=rlis2osm
+set pg_host=localhost
 set pg_user=postgres
 
 ::Prompt the user to enter their postgres password, 'pgpassword' is a keyword and will automatically
@@ -68,25 +68,23 @@ psql -q -h %pg_host% -d %db_name% -U %pg_user% -f %trails_script%
 
 goto:eof
 
-::Export modified streets and trails back to shapefile
+
+:export2osm
+::Export converted streets and trails to .osm format
 
 ::Get the last modified date from the rlis streets shapefile
 for %%i in (%rlis_streets_shp%) do (
-	rem appending '~t' in front of the variable name in a loop will return the time and date 
-	rem that the file that was assigned to that variable was last modified
+	rem appending '~t' in front of the variable name in a loop will return the time 
+	rem and date that the file that was assigned to that variable was last modified
 	set mod_date_time=%%~ti
 	
 	rem reformat the date such the it is in the following form YYYY_MM
-	set mod_year_month=!mod_date_time:~6,4!_!mod_date_time:~0,2!
+	set mod_yr_mon=!mod_date_time:~6,4!_!mod_date_time:~0,2!
 )
 
-:export2osm
-::
-
-::Create a sub-folder based on that date
-set export_workspace=G:\PUBLIC\OpenStreetMap\data\RLIS_osm\%mod_year_month%
-if not exist %export_workspace% mkdir %export_workspace%
-
+::Create a sub-folder in export directory based on the modified date
+set current_export=%export_workspace%\%mod_yr_mon%
+if not exist %current_export% mkdir %current_export%
 
 ::Convert the modified shapefiles to .osm format.  The code that will do this must be run in the 
 ::OSGeo4W Shell.  Thus that shell is launched below and a batch file containing that code is run
@@ -94,8 +92,9 @@ if not exist %export_workspace% mkdir %export_workspace%
 set osgeo4w_shell=C:\OSGeo4W64\OSGeo4W.bat
 set pgsql2osm_script=G:\PUBLIC\OpenStreetMap\rlis2osm\rlis_shp2rlis_dot_osm.bat
 
-::THe last four variables called are parameters being passed to the second batch file
-start %osgeo4w_shell% call %shp2dot_osm_script% %or_spn% %export_workspace% %streets_shp_mod% %trails_shp_mod%
+::The last six variables called are parameters passed to the osgeo4w batch file
+start %osgeo4w_shell% call %pgsql2osm_script% %or_spn% %current_export% ^
+	%db_name% %pg_host% %pg_user% %pgpassword%
 
 goto:eof
 
