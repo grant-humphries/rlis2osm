@@ -57,8 +57,8 @@ INSERT INTO osm_trails (geom, name, systemname, alt_name, est_width, wheelchair,
     );
 
 --3) Remove water and conceptual trails
-DELETE FROM osm_trails WHERE status = 'Conceptual';
-DELETE FROM osm_trails WHERE trlsurface = 'Water';
+DELETE FROM osm_trails where status = 'Conceptual';
+DELETE FROM osm_trails where trlsurface = 'Water';
 
 --4) Remove Abbreviations and unwanted characters and descriptors from name, systemname, alt_name, and operator fields
 
@@ -152,8 +152,6 @@ CREATE INDEX name_ix ON osm_trails USING BTREE (name);
 
 --Removes periods and extra spaces
 UPDATE osm_trails set name = replace(name, '.', '');
-UPDATE osm_trails set name = replace(name, '  ', ' ');
-UPDATE osm_trails set name = replace(name, '  ', ' ');
 
 --Various grammar fixes *not* related to abbreviations
 UPDATE osm_trails set name = replace(name, ' And ', ' and ');
@@ -163,7 +161,7 @@ UPDATE osm_trails set name = replace(name, ' Of ', ' of ');
 UPDATE osm_trails set name = replace(name, ' On ', ' on ');
 UPDATE osm_trails set name = replace(name, ' The ', ' the ');
 UPDATE osm_trails set name = replace(name, ' At ', ' at ');
-UPDATE osm_trails set name = replace(name, ' - Connector', '') WHERE (name LIKE '%Connector%Connector%');
+UPDATE osm_trails set name = replace(name, ' - Connector', '') where (name LIKE '%Connector%Connector%');
 
 --Street prefixes
 UPDATE osm_trails set name = replace(name, 'N ', 'North ');
@@ -182,24 +180,24 @@ UPDATE osm_trails set name = replace(name, 'Pkwy', 'Parkway');
 UPDATE osm_trails set name = replace(name, 'Hwy', 'Highway');
 
 --Saint at the beginning of the field, this must be in front the "street" expansion code
-UPDATE osm_trails set name = replace(name, 'St ', 'Saint ') WHERE left(name, 2) = 'St';
+UPDATE osm_trails set name = replace(name, 'St ', 'Saint ') where left(name, 2) = 'St';
 
 --Street sufixes that are comprised of letter combination that appear in other words
 --The first line of code overwrites only abbreviations that appear at the end of a field
 --the second line contains a space after the abbreviation so words beginning with these letters won't be modified
-UPDATE osm_trails set name = replace(name, 'Ave', 'Avenue') WHERE right(name, 3) = 'Ave';
+UPDATE osm_trails set name = replace(name, 'Ave', 'Avenue') where right(name, 3) = 'Ave';
 UPDATE osm_trails set name = replace(name, 'Ave ', 'Avenue ');
-UPDATE osm_trails set name = replace(name, 'St', 'Street') WHERE right(name, 2) = 'St';
+UPDATE osm_trails set name = replace(name, 'St', 'Street') where right(name, 2) = 'St';
 UPDATE osm_trails set name = replace(name, 'St ', 'Street ');
-UPDATE osm_trails set name = replace(name, 'Pl', 'Place') WHERE right(name, 2) = 'Pl';
+UPDATE osm_trails set name = replace(name, 'Pl', 'Place') where right(name, 2) = 'Pl';
 UPDATE osm_trails set name = replace(name, 'Pl ', 'Place ');
-UPDATE osm_trails set name = replace(name, 'Dr', 'Drive') WHERE right(name, 2) = 'Dr';
+UPDATE osm_trails set name = replace(name, 'Dr', 'Drive') where right(name, 2) = 'Dr';
 UPDATE osm_trails set name = replace(name, 'Dr ', 'Drive ');
-UPDATE osm_trails set name = replace(name, 'Ter', 'Terrace') WHERE right(name, 3) = 'Ter';
+UPDATE osm_trails set name = replace(name, 'Ter', 'Terrace') where right(name, 3) = 'Ter';
 UPDATE osm_trails set name = replace(name, 'Ter ', 'Terrace ');
-UPDATE osm_trails set name = replace(name, 'Terr', 'Terrace') WHERE right(name, 4) = 'Terr';
+UPDATE osm_trails set name = replace(name, 'Terr', 'Terrace') where right(name, 4) = 'Terr';
 UPDATE osm_trails set name = replace(name, 'Terr ', 'Terrace ');
-UPDATE osm_trails set name = replace(name, 'Wy', 'Way') WHERE right(name, 2) = 'Wy';
+UPDATE osm_trails set name = replace(name, 'Wy', 'Way') where right(name, 2) = 'Wy';
 UPDATE osm_trails set name = replace(name, 'Wy ', 'Way ');
 
 --Other abbreviation extensions
@@ -270,7 +268,7 @@ UPDATE osm_trails set systemname = replace(systemname, 'Rd', 'Road');
 UPDATE osm_trails set systemname = replace(systemname, 'Hwy', 'Highway');
 
 --Street sufixes that are comprised of letter combination that appear in other words
-UPDATE osm_trails set systemname = replace(systemname, 'Ave', 'Avenue') WHERE right(systemname, 3) = 'Ave';
+UPDATE osm_trails set systemname = replace(systemname, 'Ave', 'Avenue') where right(systemname, 3) = 'Ave';
 UPDATE osm_trails set systemname = replace(systemname, 'Ave ', 'Avenue ');
 
 --Other abbreviation extensions
@@ -314,14 +312,14 @@ UPDATE osm_trails set systemname = replace(systemname, 'Max ', 'MAX ');
 
 --Delete value in "systemname" for trails that where it duplictates the value in "name" or "alt_name"
 UPDATE osm_trails set systemname = '' 
-    WHERE (UPPER(systemname) = UPPER(name) OR UPPER(systemname) = UPPER(alt_name));
+    where (UPPER(systemname) = UPPER(name) OR UPPER(systemname) = UPPER(alt_name));
 
 
 --d) Remove abbreviations from "operator"
 
 --These entries don't actually explain who the operator is, thus their removal
 UPDATE osm_trails set operator = '' 
-    WHERE operator = 'Home Owner Association' OR operator = 'Unknown';
+    where operator = 'Home Owner Association' OR operator = 'Unknown';
 
 --A few minor fixes, everything is already expanded, cameled, etc. for the most part
 UPDATE osm_trails set operator = replace(operator, 'US', 'United States');
@@ -331,28 +329,28 @@ UPDATE osm_trails set operator = replace(operator, 'COUNTY', 'County');
 --a) Staight-forward conversions for populated columns
 
 --est_width
-UPDATE osm_trails set est_width = '1.0' WHERE est_width = '1-5';
-UPDATE osm_trails set est_width = '2.5' WHERE est_width = '6-9';
-UPDATE osm_trails set est_width = '2.5' WHERE est_width = '5-10';
-UPDATE osm_trails set est_width = '3.0' WHERE est_width = '10';
-UPDATE osm_trails set est_width = '3.5' WHERE est_width = '10-14';
-UPDATE osm_trails set est_width = '4.5' WHERE est_width = '15+';
-UPDATE osm_trails set est_width = '' WHERE est_width = 'Unknown';
+UPDATE osm_trails set est_width = '1.0' where est_width = '1-5';
+UPDATE osm_trails set est_width = '2.5' where est_width = '6-9';
+UPDATE osm_trails set est_width = '2.5' where est_width = '5-10';
+UPDATE osm_trails set est_width = '3.0' where est_width = '10';
+UPDATE osm_trails set est_width = '3.5' where est_width = '10-14';
+UPDATE osm_trails set est_width = '4.5' where est_width = '15+';
+UPDATE osm_trails set est_width = '' where est_width = 'Unknown';
 
 --wheelchair=*
-UPDATE osm_trails set wheelchair =  'yes' WHERE wheelchair = 'Accessible';
-UPDATE osm_trails set wheelchair =  'no' WHERE wheelchair = 'Not Accessible';
-UPDATE osm_trails set wheelchair =  '' WHERE wheelchair != 'Accessible' AND wheelchair != 'Not Accessible';
+UPDATE osm_trails set wheelchair =  'yes' where wheelchair = 'Accessible';
+UPDATE osm_trails set wheelchair =  'no' where wheelchair = 'Not Accessible';
+UPDATE osm_trails set wheelchair =  '' where wheelchair != 'Accessible' AND wheelchair != 'Not Accessible';
 
 --mtb=*
-UPDATE osm_trails set mtb = 'yes' WHERE mtb = 'Yes';
-UPDATE osm_trails set mtb = 'no' WHERE mtb = 'No';
-UPDATE osm_trails set mtb = '' WHERE mtb != 'Yes' AND mtb != 'No';
+UPDATE osm_trails set mtb = 'yes' where mtb = 'Yes';
+UPDATE osm_trails set mtb = 'no' where mtb = 'No';
+UPDATE osm_trails set mtb = '' where mtb != 'Yes' AND mtb != 'No';
 
 --horse=*
-UPDATE osm_trails set horse = 'yes' WHERE horse = 'Yes';
-UPDATE osm_trails set horse = 'no' WHERE horse = 'No';
-UPDATE osm_trails set horse = '' WHERE horse != 'Yes' AND horse != 'No';
+UPDATE osm_trails set horse = 'yes' where horse = 'Yes';
+UPDATE osm_trails set horse = 'no' where horse = 'No';
+UPDATE osm_trails set horse = '' where horse != 'Yes' AND horse != 'No';
 
 --b) Staight-forward conversions for empty columns
 
@@ -364,25 +362,25 @@ DROP INDEX IF EXISTS trlsurface_ix CASCADE;
 CREATE INDEX trlsurface_ix ON osm_trails USING BTREE (trlsurface);
 
 --access=*
-UPDATE osm_trails set access = 'license' WHERE status = 'Restricted';
-UPDATE osm_trails set access = 'unknown' WHERE status = 'Unknown';
-UPDATE osm_trails set access = 'private' WHERE status = 'Restricted_Private';
+UPDATE osm_trails set access = 'license' where status = 'Restricted';
+UPDATE osm_trails set access = 'unknown' where status = 'Unknown';
+UPDATE osm_trails set access = 'private' where status = 'Restricted_Private';
 
 --fee=*
-UPDATE osm_trails set fee = 'yes' WHERE status = 'Open_Fee';
+UPDATE osm_trails set fee = 'yes' where status = 'Open_Fee';
 
 --abandoned=*
 --Need to append and "abandoned:" prefix on the highway tags of trails that have this tag
-UPDATE osm_trails set abandoned = 'yes' WHERE status = 'Decommissioned';
+UPDATE osm_trails set abandoned = 'yes' where status = 'Decommissioned';
 
 -- surface=*
-UPDATE osm_trails set surface = 'ground' WHERE trlsurface = 'Native Material';
-UPDATE osm_trails set surface = 'woodchip' WHERE trlsurface = 'Chunk Wood';
+UPDATE osm_trails set surface = 'ground' where trlsurface = 'Native Material';
+UPDATE osm_trails set surface = 'woodchip' where trlsurface = 'Chunk Wood';
 --Comparison of value "Hard Surface" is done in upper case because there are inconsistencies 
 --in capitalization of this phrase
-UPDATE osm_trails set surface = 'paved' WHERE UPPER(trlsurface) = UPPER('Hard Surface');
-UPDATE osm_trails set surface = 'wood' WHERE trlsurface = 'Decking';
-UPDATE osm_trails set surface = 'pebblestone' WHERE trlsurface = 'Imported Material';
+UPDATE osm_trails set surface = 'paved' where UPPER(trlsurface) = UPPER('Hard Surface');
+UPDATE osm_trails set surface = 'wood' where trlsurface = 'Decking';
+UPDATE osm_trails set surface = 'pebblestone' where trlsurface = 'Imported Material';
 
 --c) Straight forward conversions on empty columns that will be over written in some places based on other attributes
 
@@ -393,11 +391,11 @@ DROP INDEX IF EXISTS roadbike_ix CASCADE;
 CREATE INDEX roadbike_ix ON osm_trails USING BTREE (roadbike);
 
 --foot=*
-UPDATE osm_trails set foot = 'no' WHERE hike = 'No';
+UPDATE osm_trails set foot = 'no' where hike = 'No';
  
 --bicycle=*
-UPDATE osm_trails set bicycle = 'yes' WHERE roadbike = 'Yes';
-UPDATE osm_trails set bicycle = 'no' WHERE roadbike = 'No';
+UPDATE osm_trails set bicycle = 'yes' where roadbike = 'Yes';
+UPDATE osm_trails set bicycle = 'no' where roadbike = 'No';
 
 --d) Complex conversions
 
@@ -417,34 +415,34 @@ UPDATE osm_trails set highway = 'footway';
 
 --Multi-Use Paths (MUPs)
 UPDATE osm_trails set highway = 'path', bicycle = 'designated', foot = 'designated'
-   WHERE roadbike = 'Yes' AND hike = 'Yes' AND est_width != '1.0' AND (onstrbike = 'Yes' OR onstrbike = 'No')
+   where roadbike = 'Yes' AND hike = 'Yes' AND est_width != '1.0' AND (onstrbike = 'Yes' OR onstrbike = 'No')
    AND (UPPER(trlsurface) = UPPER('Hard Surface') OR trlsurface = 'Decking');
 
 --Bike only paths
 UPDATE osm_trails set highway = 'cycleway', bicycle = ''
-   WHERE roadbike = 'Yes' AND onstrbike = 'Yes' AND est_width != '1.0'
+   where roadbike = 'Yes' AND onstrbike = 'Yes' AND est_width != '1.0'
    AND (UPPER(trlsurface) = UPPER('Hard Surface') OR trlsurface = 'Decking') AND hike = 'No';
 
 --Hiking Trails
 UPDATE osm_trails set highway = 'path', foot = 'designated'
-   WHERE hike = 'Yes' AND roadbike = 'No' AND UPPER(trlsurface) != UPPER('Hard Surface') AND horse != 'yes';
+   where hike = 'Yes' AND roadbike = 'No' AND UPPER(trlsurface) != UPPER('Hard Surface') AND horse != 'yes';
 
 --Horseback riding trails
 UPDATE osm_trails set highway = 'bridleway'
-   WHERE horse = 'yes' AND roadbike = 'No' AND UPPER(trlsurface) != UPPER('Hard Surface');
-UPDATE osm_trails set foot = 'yes' WHERE highway = 'bridleway' AND hike = 'Yes';
+   where horse = 'yes' AND roadbike = 'No' AND UPPER(trlsurface) != UPPER('Hard Surface');
+UPDATE osm_trails set foot = 'yes' where highway = 'bridleway' AND hike = 'Yes';
 
 --Stairs (this is stored on trlsurface for some reason)
 UPDATE osm_trails set highway = 'steps', bicycle = '', foot = '' 
-   WHERE trlsurface = 'Stairs';
+   where trlsurface = 'Stairs';
 
 --Move value out of highway column and into another colunm for special cases like construction, proposed and abandoned features
-UPDATE osm_trails set hwy_abndnd = highway, highway = '' WHERE abandoned = 'yes';
-UPDATE osm_trails set cnstrctn = highway, highway = 'construction' WHERE status = 'Under construction';
-UPDATE osm_trails set proposed = highway, highway = 'proposed' WHERE status = 'Planned';
+UPDATE osm_trails set hwy_abndnd = highway, highway = '' where abandoned = 'yes';
+UPDATE osm_trails set cnstrctn = highway, highway = 'construction' where status = 'Under construction';
+UPDATE osm_trails set proposed = highway, highway = 'proposed' where status = 'Planned';
 
 --A footway with a foot=no tag doesn't make sense, I found that this was occuring on trails that require a fee to access
-UPDATE osm_trails set foot = 'license', access = 'no' WHERE highway = 'footway' AND foot = 'no';
+UPDATE osm_trails set foot = 'license', access = 'no' where highway = 'footway' AND foot = 'no';
 
 
 --6) Merge contiguous segment that have the same values for all attributes, this requires the creation of a new table as

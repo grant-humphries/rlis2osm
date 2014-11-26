@@ -11,8 +11,8 @@ set client_encoding to 'UTF8';
 vaccum analyze rlis_streets;
 
 --1) create table to hold osm streets
-drop table if exists osm_streets_temp cascade;
-create table osm_streets_temp (
+drop table if exists osm_sts_staging cascade;
+create table osm_sts_staging (
 	id serial primary key,
 	geom geometry,
 	access text,
@@ -30,8 +30,8 @@ create table osm_streets_temp (
 	st_direction text
 );
 
---2) POPULATE osm_streets from rlis rlis_streets
-insert into osm_streets_temp (geom, st_prefix, st_name, st_type, st_direction, oneway, 
+--2) Populate osm_streets from rlis rlis_streets
+insert into osm_sts_staging (geom, st_prefix, st_name, st_type, st_direction, oneway, 
 		highway, service, access, surface, layer)
 	select rs.geom, 
 		--expand street name prefix
@@ -134,7 +134,7 @@ insert into osm_streets_temp (geom, st_prefix, st_name, st_type, st_direction, o
 			end,
 	from rlis_streets rs;
 
-vaccum analyze osm_streets_temp;
+vaccum analyze osm_sts_staging;
 
 --b) Proper case basic name
 --Below function from "Jonathan Brinkman" <JB(at)BlackSkyTech(dot)com> 
@@ -162,8 +162,8 @@ declare
 
 begin
 	SWV_InputString := v_InputString;
-	--cures problem where string starts with blank space
-	SWV_InputString := ltrim(rtrim(SWV_InputString)); 
+	--cures problem where string starts with blank space and removes back-to-back spaces
+	SWV_InputString := regexp_replace(ltrim(rtrim(SWV_InputString)), '\s+', '\s'); 
 	v_OutputString := lower(SWV_InputString);
 	v_Index := 1;
 	--replaces 1st char of Output with uppercase of 1st char from input
@@ -190,7 +190,7 @@ begin
 				elsif upper(v_Char) != 'M' and (substr(SWV_InputString,v_Index+1,1) <> repeat(' ',1)) then
 					v_OutputString := overlay(v_OutputString placing upper(substr(SWV_InputString,v_Index+1,1)) from v_Index+1 for 1);
 				--special case for handling 'Mc' as in McDonald
-				elsif upper(v_Char) = 'M' and upper(substr(SWV_InputString,v_Index+1,1)) = 'C' then
+				elsif upper(v_Char) = 'M' and upper(substr(SWV_InputString,v_Index+1,1)) = 'C' and (substring(SWV_InputString,v_Index-1,1) in (' ','-') or v_Index=1) then
 					v_OutputString := overlay(v_OutputString placing upper(substr(SWV_InputString,v_Index,1)) from v_Index for 1);
 					--makes the 'C' lower case.
 					v_OutputString := overlay(v_OutputString placing lower(substr(SWV_InputString,v_Index+1,1)) from v_Index+1 for 1);
@@ -215,128 +215,113 @@ security invoker
 cost 100;
 
 
+--Expand street suffixes that are within street basename
+update osm_sts_staging set streetname = 
+	regexp_replace(streetname, '(\s)Av[e]?(-|\s|$)', '\1Avenue\2', 'g');
+update osm_sts_staging set streetname = 
+	regexp_replace(streetname, '(\s)Blvd(-|\s|$)', '\1Boulevard\2 ', 'g');
+update osm_sts_staging set streetname = 
+	regexp_replace(streetname, '(\s)Brg(-|\s|$)', '\1Bridge\2 ', 'g');
+update osm_sts_staging set streetname = 
+	regexp_replace(streetname, '(\s)Ct(-|\s|$)', '\1Court\2 ', 'g');
+update osm_sts_staging set streetname = 
+	regexp_replace(streetname, '(\s)Dr(-|\s|$)', '\1Drive\2 ', 'g');
+update osm_sts_staging set streetname = 
+	regexp_replace(streetname, '(^|\s|-)Fwy(-|\s|$)', '\1Freeway\2 ', 'g');
+update osm_sts_staging set streetname = 
+	regexp_replace(streetname, '(^|\s|-)Hwy(-|\s|$)', '\1Highway\2 ', 'g');
+update osm_sts_staging set streetname = 
+	regexp_replace(streetname, '(\s)Pkwy(-|\s|$)', '\1Parkway\2 ', 'g');
+update osm_sts_staging set streetname = 
+	regexp_replace(streetname, '(\s)Pl(-|\s|$)', '\1Place\2', 'g');
+update osm_sts_staging set streetname = 
+	regexp_replace(streetname, '(\s)Rd(-|\s|$)', '\1Road\2 ', 'g')
+--St--> Street (will not occur at beginning of a streetname)
+update osm_sts_staging set streetname = 
+	regexp_replace(streetname, '(\s)St(-|\s|$)', '\1Street\2 ', 'g');
 
+--Expand other abbreviated parts of street basename
+update osm_sts_staging set streetname = 
+	regexp_replace(streetname, '(^|\s|-)Cc(-|\s|$)', '\1Community College\2', 'g');
+update osm_sts_staging set streetname = 
+	regexp_replace(streetname, '(^|\s|-)Co(-|\s|$)', '\1County\2', 'g');
+update osm_sts_staging set streetname = 
+	regexp_replace(streetname, '(^|\s|-)Ft Of(-|\s|$)', '\1Foot of\2', 'g');
+update osm_sts_staging set streetname = 
+	regexp_replace(streetname, '(\s)Jr(-|\s|$)', '\1Junior\2', 'g');
+--Mt at beginning of name is 'Mount' later in name is 'Mountain'
+update osm_sts_staging set streetname = 
+	regexp_replace(streetname, '(^|-|-\s)Mt(\s)', '\1Mount\2', 'g');
+update osm_sts_staging set streetname = 
+	regexp_replace(streetname, '(\s)Mt(-|\s|$)', '\1Mountain\2', 'g');
+update osm_sts_staging set streetname = 
+	regexp_replace(streetname, '(^|\s|-)Nfd(-|\s|$)', '\1National Forest Development Road\2', 'g');
+update osm_sts_staging set streetname = 
+	regexp_replace(streetname, '(^|\s|-)Pcc(-|\s|$)', '\1Portland Community College\2', 'g');
+update osm_sts_staging set streetname = 
+	regexp_replace(streetname, '(\s)Tc(-|\s|$)', '\1Transit Center\2', 'g');
+--St--> Saint (will only occur at the beginning of a street name)
+update osm_sts_staging set streetname = 
+	regexp_replace(streetname, '(^|-|-\s)(Mt\s|Mount\s|Old\s)?St[.]?(\s)', '\1\2Saint\3', 'g');
+update osm_sts_staging set streetname = 
+	regexp_replace(streetname, '(^|\s|-)Us(-|\s|$)', '\1United States\2', 'g');
 
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Hwy', 'Highway');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Fwy', 'Freeway');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Pkwy', 'Parkway');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Blvd', 'Boulevard');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Co Rd', 'County Road');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Rd', 'Road');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Brg', 'Bridge');
-set streetname = regexp_replace('Pl Something Pl- Pl', '(^|\s|-)Pl(-|\s|$)', 'Place', 'g')
-
-
-
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Pl ', 'Place ');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Pl-', 'Place-');
---Pl at end of field
-update osm_streets set st_name_abb_fix = overlay(st_name_abb_fix placing 'Place' from (char_length(st_name_abb_fix) - 1) for char_length(st_name_abb_fix)) 
-	where right(st_name_abb_fix, 2) = 'Pl';
-
---Ave
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Ave-', 'Avenue-');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Ave ', 'Avenue ');
---Ave at end of field
-update osm_streets set st_name_abb_fix = overlay(st_name_abb_fix placing 'Avenue' from (char_length(st_name_abb_fix) - 2) for char_length(st_name_abb_fix)) 
-	where right(st_name_abb_fix, 3) = 'Ave';
---Av at end of field
-update osm_streets set st_name_abb_fix = overlay(st_name_abb_fix placing 'Avenue' from (char_length(st_name_abb_fix) - 1) for char_length(st_name_abb_fix)) 
-	where right(st_name_abb_fix, 2) = 'Av';
-
---St
---St at beginning of field (Saint)
-update osm_streets set st_name_abb_fix = overlay(st_name_abb_fix placing 'Saint ' from 1 for 3) 
-	where left(st_name_abb_fix, 3) = 'St ';
---Mount Saint...
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Mt St ', 'Mount Saint ');
---Old Saint...
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Old St ', 'Old Saint ');
---"St."
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'St.', 'Saint');
---"St-"
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'St-', 'Street-');
---St at end of field
-update osm_streets set st_name_abb_fix = overlay(st_name_abb_fix placing 'Street' from (char_length(st_name_abb_fix) - 1) for char_length(st_name_abb_fix)) 
-	where right(st_name_abb_fix, 2) = 'St';
---remaining cases
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'St ', 'Street ');
-
---Dr
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Dr-', 'Drive-');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Dr ', 'Drive ');
---Dr at end of field
-update osm_streets set st_name_abb_fix = overlay(st_name_abb_fix placing 'Drive' from (char_length(st_name_abb_fix) - 1) for char_length(st_name_abb_fix)) 
-	where right(st_name_abb_fix, 2) = 'Dr';
-
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Ct ', 'Court ');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Ct-', 'Court-');
---Ct at end of field
-update osm_streets set st_name_abb_fix = overlay(st_name_abb_fix placing 'Court' from (char_length(st_name_abb_fix) - 1) for char_length(st_name_abb_fix)) 
-	where right(st_name_abb_fix, 2) = 'Ct';
-
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Jr ', 'Junior ');
---Jr at end of field
-update osm_streets set st_name_abb_fix = overlay(st_name_abb_fix placing 'Junior' from (char_length(st_name_abb_fix) - 1) for char_length(st_name_abb_fix)) 
-	where right(st_name_abb_fix, 2) = 'Jr';
-
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Tc', 'Transit Center');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Us ', 'United States ');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Med ', 'Medical ');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Hosp ', 'Hospital ');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Hosp/', 'Hospital/');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Mt ', 'Mount ');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Cc', 'Community College');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Nfd ', 'National Forest Development ');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Mtn', 'Mountain');
 
 --super special cases
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Bpa', 'Bonneville Power Administration');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'ArMcO', 'ARMCO');
+--for these create an index and match the full name of the field to decrease run time of script
+drop index if exists streetname_ix cascade;
+create index streetname_ix on osm_sts_staging using BTREE (streetname);
+
+vacuum analyze osm_sts_staging;
+
+update osm_sts_staging set streetname = 'Bpa'
+	where streetname ='Bonneville Power Administration';
+update osm_sts_staging set streetname = 'Jq Adams'
+	where streetname ='JQ Adams';
+update osm_sts_staging set streetname = 'Sunnyside Hosp-Mount Scott Med Transit Center'
+	where streetname ='Sunnyside Hospital-Mount Scott Medical Transit Center';
+
+
 update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Ft Of N Holladay', 'North Holladay');
 update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Ft Of Se Madison', 'Southeast Madison');
 update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Ft Of Se Marion', 'Southeast Marion');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Jq ', 'JQ ');
+
 update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Obrien', 'O’Brien');
 update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Oday', 'O’Day');
 update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Oneal', 'O’Neal');
 update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Oneill', 'O’Neill');
 update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Oneil', 'O’Neil');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Pcc ', 'Portland Community College ');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Portland Traction Co', 'Portland Traction Company');
 
 
+--Now that abbreviations in street names have been expanded concatenate their parts
+--concat strategy via http://www.laudatio.com/wordpress/2009/04/01/a-better-concat-for-postgresql/
+update osm_sts_staging set 
+	name = array_to_string(array[prefix, streetname, ftype, direction], ' ')
+	where highway != 'motorway_link' 
+		or highway is not null;
 
---f) put it all together!
---example concat strategy from http://www.laudatio.com/wordpress/2009/04/01/a-better-concat-for-postgresql/
---select array_to_string(array[title, firstname, surname], ' ') from persons;
-update osm_streets set name = '';
-update osm_streets set name = array_to_string(array[prefix, st_name_abb_fix, ftype], ' ');
+--motorway_link's shouldn't have names, but rather descriptions in osm
+--source: http://wiki.openstreetmap.org/wiki/Link_%28highway%29
+update osm_sts_staging set 
+	description = array_to_string(array[prefix, streetname, ftype, direction], ' ')
+	where highway = 'motorway_link';
 
 
---5) Motorway_links should have descriptions, not name and should appear in a form similar to "Sunset-Helvatia Westbound Ramp"
-update osm_streets set description = array_to_string(array[prefix, st_name_abb_fix, direction, ftype], ' '), name = '', direction = '' 
-	where (highway = 'motorway_link');
-
-
---7) Merge contiguous segment that have the same values for all attributes, this requires the creation of a new table as
---far as I can tell
+--Merge contiguous segment that have the same values for all attributes, this 
+--requires the creation of a new table
 drop table if exists osm_streets cascade;
 create table osm_streets with oids as
 	--st_dump is essentially the opposite of 'group by', it unpacks multi-linestings (or multi-polygons) into its
 	--individual component parts and creates and entry in the table for each of those parts
-	select (ST_Dump(geom)).geom as geom, name, highway, oneway, access, service, surface,
-		pc_left, pc_right, description
+	select (ST_Dump(geom)).geom as geom, access, description,
+		highway, layer, name, oneway, service, surface
 	--st_union merges all the grouped features into a single geometry collection and st_linemerege makes 
 	--connected segments into single unified lines where possible
-	from (select ST_LineMerge(ST_Union(geom)) as geom, name, highway, oneway, access, service, surface,
-			  pc_left, pc_right, description
-		  from osm_streets
-		  group by name, highway, oneway, access, service, surface,
-			  pc_left, pc_right, description) as unioned_streets;
-
---Get rid of the temporary table in which all of the translations were made
-drop table if exists osm_streets_temp cascade;
+	from (select ST_LineMerge(ST_Union(geom)) as geom, access, description,
+				highway, layer, name, oneway, service, surface
+			from osm_sts_staging 
+			group by access, description, highway, layer, name, oneway,
+				service, surface) as unioned_streets;
 
 
 
@@ -354,8 +339,4 @@ example:
 python ogr2osm.py -f -e 2913 -o P:\temp\clack_streets.osm -t rlis_streets_trans.py P:\temp\clac_sts.shp
 **/
 
---return client encoding to default setting, change is specific to the windows environment 
---that this script is being run in using a batch file with the command prompt, the command
---below and its complement at the beginning of the script can be removed if it causes
---problems in other environments
 reset client_encoding;
