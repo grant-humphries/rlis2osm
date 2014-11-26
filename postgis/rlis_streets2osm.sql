@@ -267,6 +267,21 @@ update osm_sts_staging set streetname =
 	regexp_replace(streetname, '(^|\s|-)Us(-|\s|$)', '\1United States\2', 'g');
 
 
+update osm_sts_staging set streetname = 
+	case when streetname != regexp_replace(streetname, 
+		'(^|\s|-)O(brien|day|neal|neil[l]?)(-|\s|$)', '\1O''\2\3', 'g')
+	then format_titlecase(regexp_replace(streetname, 
+		'(^|\s|-)O(brien|day|neal|neil[l]?)(-|\s|$)', '\1O''\2\3', 'g'))
+	else streetname end;
+
+
+update osm_sts_staging set streetname = 
+	case when streetname != regexp_replace(streetname, 
+		'(^|\s|-)Ft\sOf\s(N|Se)(\s)(Holladay|Madison|Marion)(-|\s|$)', '\1Foot of \2\3\4\5' 'g')
+	then format_titlecase(regexp_replace(streetname, 
+		'(^|\s|-)O(brien|day|neal|neil[l]?)(-|\s|$)', '\1O''\2\3', 'g'))
+	else streetname end;
+
 --super special cases
 --for these create an index and match the full name of the field to decrease run time of script
 drop index if exists streetname_ix cascade;
