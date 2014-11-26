@@ -8,7 +8,7 @@
 --batch file on windows 7 the encoding is 'WIN1252' which cause errors to be thrown
 set client_encoding to 'UTF8';
 
---ADD INDICES TO RLIS STREETS TABLE HERE
+vaccum analyze rlis_streets;
 
 --1) create table to hold osm streets
 drop table if exists osm_streets_temp cascade;
@@ -23,7 +23,7 @@ create table osm_streets_temp (
 	oneway text,
 	service text,
 	surface text,
-	--these fields won't appear in the final output
+	--fields below are for staging
 	st_prefix text,
 	st_name text,
 	st_type text
@@ -75,7 +75,7 @@ insert into osm_streets_temp (geom, st_prefix, st_name, st_type, st_direction, o
 			when ftype ilike 'TRL' then 'Trail'
 			when ftype ilike 'VIA' then 'Viaduct'			
 			when ftype ilike 'VW' then 'View'
-			--If not in this list, put original value in title case
+			--if not in this list, put original value in title case
 			else upper(substring(ftype from 1 for 1)) || 
 				lower(substring(ftype from 2 for length(ftype))) end,
 		--traffic direction type
@@ -94,14 +94,14 @@ insert into osm_streets_temp (geom, st_prefix, st_name, st_type, st_direction, o
 			else null end,
 		--osm highway type, metadata on rlis street types is here:
 		--http://rlisdiscovery.oregonmetro.gov/?action=viewDetail&layerID=556#
-		case when rs.type in (1100, 5101, 5201) then 'motorway'
+		case when rs.type in (1110, 5101, 5201) then 'motorway'
 			when rs.type in (1120, 1121, 1122, 1123) then 'motorway_link'
 			--none of the rlis classes really map to trunk
 			when rs.type in (1200, 1300, 5301) then 'primary'
 			when rs.type in (1221, 1222, 1223, 1321) then 'primary_link'
 			when rs.type in (1400, 5401, 5451) then 'secondary'
 			when rs.type in (1421, 1471) then 'secondary_link'
-			when rs.type in (1450, 5500, 5501) then 'tertiary'
+			when rs.type in (1450, 5402, 5500, 5501) then 'tertiary'
 			when rs.type in (1521) then 'tertiary_link'
 			--residential streets should always be named otherwise they're service roads
 			when rs.type in (1500, 1550, 1700, 1740, 2000, 8224) 
@@ -116,6 +116,7 @@ insert into osm_streets_temp (geom, st_prefix, st_name, st_type, st_direction, o
 			else null end,
 		--access permissions
 		case when rs.type in (1700, 1740, 1750, 1760, 1800, 1850) then 'private'
+			when rs.type in (5402) then 'no'
 			else null end,
 		--surface
 		case when rd.type in (2000) then 'unpaved'
@@ -131,19 +132,15 @@ insert into osm_streets_temp (geom, st_prefix, st_name, st_type, st_direction, o
 					when f_zlev < 0 and t_zlev < 0 then least(f_zlev, t_zlev)
 					when f_zlev < 0 and t_zlev > 0 then f_zlev end
 			end,
-	rs.prefix, rs.streetname, rs.ftype, rs.direction, rs.type, rs.leftzip, rs.rightzip, rs.lcounty, rs.rcounty
 	from rlis_streets rs;
 
+vaccum analyze osm_streets_temp;
 
 --b) Proper case basic name
---Below function from "Jonathan Brinkman" <JB(at)BlackSkyTech(dot)com> http://archives.postgresql.org/pgsql-sql/2010-09/msg00088.php
-create or replace function "format_titlecase" (
-	"v_inputstring" varchar
-)
-returns varchar as
-$body$
+--Below function from "Jonathan Brinkman" <JB(at)BlackSkyTech(dot)com> 
+--http://archives.postgresql.org/pgsql-sql/2010-09/msg00088.php
 
-/*
+/* Examples
 select * from Format_TitleCase('MR DOG BREATH');
 select * from Format_TitleCase('each word, mcclure of this string:shall be transformed');
 select * from Format_TitleCase(' EACH WORD HERE SHALL BE TRANSFORMED TOO incl. mcdonald o''neil o''malley mcdervet');
@@ -153,6 +150,10 @@ select * from Format_TitleCase('J&B ART');
 select * from Format_TitleCase('J&B ART J & B ART this''s art''s house''s problem''s 0''shay o''should work''s EACH WORD HERE SHALL BE TRANSFORMED TOO incl. mcdonald o''neil o''malley mcdervet');
 */
 
+create or replace function "format_titlecase" ("v_inputstring" varchar)
+returns varchar as
+$body$
+
 declare
 	v_Index int;
 	v_Char char(1);
@@ -161,46 +162,48 @@ declare
 
 begin
 	SWV_InputString := v_InputString;
-	SWV_InputString := ltrim(rtrim(SWV_InputString)); --cures problem where string starts with blank space
+	--cures problem where string starts with blank space
+	SWV_InputString := ltrim(rtrim(SWV_InputString)); 
 	v_OutputString := lower(SWV_InputString);
 	v_Index := 1;
-	v_OutputString := overlay(v_OutputString placing upper(substr(SWV_InputString,1,1)) from 1 for 1); -- replaces 1st char of Output with uppercase of 1st char from Input
+	--replaces 1st char of Output with uppercase of 1st char from input
+	v_OutputString := overlay(v_OutputString placing upper(substr(SWV_InputString, 1, 1)) from 1 for 1); 
+	
 	while v_Index <= length(SWV_InputString) loop
-		v_Char := substr(SWV_InputString,v_Index,1); -- gets loop's working character
-		if v_Char IN('m','M','',';',':','!','?',',','.','_','-','/','&','''','(',chr(9)) then
-			--end4
+		v_Char := substr(SWV_InputString, v_Index, 1); 
+		--gets loop's working character
+		if v_Char in ('m','M',' ',';',':','!','?',',','.','_','-','/','&','''','(',chr(9),'0','1','2','3','4','5','6','7','8','9') then
 			if v_Index+1 <= length(SWV_InputString) then
-				if v_Char = '''' and upper(substr(SWV_InputString,v_Index+1,1)) <> 'S' and substr(SWV_InputString,v_Index+2,1) <> repeat(' ',1) then  -- if the working char is an apost and the letter after that is not S
-				v_OutputString := overlay(v_OutputString placing upper(substr(SWV_InputString,v_Index+1,1)) from v_Index+1 for 1);
-			else 
-			   if v_Char = '&' then -- if the working char is an &
-				  if(substr(SWV_InputString,v_Index+1,1)) = ' ' then
-					 v_OutputString := overlay(v_OutputString placing upper(substr(SWV_InputString,v_Index+2,1)) from v_Index+2 for 1);
-				  else
-					 v_OutputString := overlay(v_OutputString placing upper(substr(SWV_InputString,v_Index+1,1)) from v_Index+1 for 1);
-				  end if;
-			   else
-				  if upper(v_Char) != 'M' and (substr(SWV_InputString,v_Index+1,1) <> repeat(' ',1) and substr(SWV_InputString,v_Index+2,1) <> repeat(' ',1)) then
-					 v_OutputString := overlay(v_OutputString placing upper(substr(SWV_InputString,v_Index+1,1)) from v_Index+1 for 1);
-				  end if;
-			   end if;
-			end if;
-
-			-- special case for handling "Mc" as in McDonald
-			if upper(v_Char) = 'M' and upper(substr(SWV_InputString,v_Index+1,1)) = 'C' then
-			   v_OutputString := overlay(v_OutputString placing upper(substr(SWV_InputString,v_Index,1)) from v_Index for 1);
-							--MAKES THE C lower CasE.
-			   v_OutputString := overlay(v_OutputString placing lower(substr(SWV_InputString,v_Index+1,1)) from v_Index+1 for 1);
-							-- makes the letter after the C upper case
-			   v_OutputString := overlay(v_OutputString placing upper(substr(SWV_InputString,v_Index+2,1)) from v_Index+2 for 1);
-							--WE TOOK CARE OF THE CHAR AFTER THE C (we handled 2 letters instead of only 1 as usual), SO WE NEED TO ADVANCE.
+				--if the working char is an apostrophe and the letter after that is not S
+				if v_Char = '''' and upper(substr(SWV_InputString,v_Index+1,1)) <> 'S' and substr(SWV_InputString,v_Index+2,1) <> repeat(' ',1) then
+					v_OutputString := overlay(v_OutputString placing upper(substr(SWV_InputString,v_Index+1,1)) from v_Index+1 for 1);
+				--if the working char is an &
+				elsif v_Char = '&' then
+					if(substr(SWV_InputString,v_Index+1,1)) = ' ' then
+						v_OutputString := overlay(v_OutputString placing upper(substr(SWV_InputString,v_Index+2,1)) from v_Index+2 for 1);
+					else
+						v_OutputString := overlay(v_OutputString placing upper(substr(SWV_InputString,v_Index+1,1)) from v_Index+1 for 1);
+					end if;
+				--if working character is not 'm', in this case I want single letter words to be capitalized
+				--if that's not the case add the clause that the second character after the working character 
+				--cannot be a space
+				elsif upper(v_Char) != 'M' and (substr(SWV_InputString,v_Index+1,1) <> repeat(' ',1)) then
+					v_OutputString := overlay(v_OutputString placing upper(substr(SWV_InputString,v_Index+1,1)) from v_Index+1 for 1);
+				--special case for handling 'Mc' as in McDonald
+				elsif upper(v_Char) = 'M' and upper(substr(SWV_InputString,v_Index+1,1)) = 'C' then
+					v_OutputString := overlay(v_OutputString placing upper(substr(SWV_InputString,v_Index,1)) from v_Index for 1);
+					--makes the 'C' lower case.
+					v_OutputString := overlay(v_OutputString placing lower(substr(SWV_InputString,v_Index+1,1)) from v_Index+1 for 1);
+					--makes the letter after the 'c' upper case
+					v_OutputString := overlay(v_OutputString placing upper(substr(SWV_InputString,v_Index+2,1)) from v_Index+2 for 1);
+					--we took care of the char acfter 'c' (we handled 2 letters instead of only 1 as usual), so we need to advance.
 					v_Index := v_Index+1;
 				end if;
 			end if;
-		end if; --end3
+		end if;
 
 		v_Index := v_Index+1;
-	end loop; --end2
+	end loop; 
 
 	return coalesce(v_OutputString,'');
 end;
@@ -211,14 +214,8 @@ called on null input
 security invoker
 cost 100;
 
---mine
-update osm_streets set st_name_proper = format_titlecase(streetname);
 
---c) Deal with abbreviations/common fixes in st_name_proper
-update osm_streets set st_name_abb_fix = st_name_proper;
 
-drop index if exists st_name_abb_fix_ix cascade;
-create index st_name_abb_fix_ix ON osm_streets using BTREE (st_name_abb_fix);
 
 update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Hwy', 'Highway');
 update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Fwy', 'Freeway');
@@ -227,6 +224,10 @@ update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Blvd', 'Boule
 update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Co Rd', 'County Road');
 update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Rd', 'Road');
 update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Brg', 'Bridge');
+set streetname = regexp_replace('Pl Something Pl- Pl', '(^|\s|-)Pl(-|\s|$)', 'Place', 'g')
+
+
+
 update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Pl ', 'Place ');
 update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Pl-', 'Place-');
 --Pl at end of field
@@ -291,18 +292,11 @@ update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Mtn', 'Mounta
 
 --super special cases
 update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Bpa', 'Bonneville Power Administration');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Cesar e Chavez', 'Cesar E Chavez');
 update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'ArMcO', 'ARMCO');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Ft Of n Holladay', 'North Holladay');
+update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Ft Of N Holladay', 'North Holladay');
 update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Ft Of Se Madison', 'Southeast Madison');
 update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Ft Of Se Marion', 'Southeast Marion');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, '99e', '99E');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, '99w', '99W');
 update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Jq ', 'JQ ');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, ' o ', ' O ');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, ' w ', ' W ');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, ' v ', ' V ');
-update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, ' s ', ' S ');
 update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Obrien', 'O’Brien');
 update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Oday', 'O’Day');
 update osm_streets set st_name_abb_fix = replace(st_name_abb_fix, 'Oneal', 'O’Neal');
@@ -342,52 +336,13 @@ create table osm_streets with oids as
 			  pc_left, pc_right, description) as unioned_streets;
 
 --Get rid of the temporary table in which all of the translations were made
-drop table if exists osm_streets cascade;
+drop table if exists osm_streets_temp cascade;
 
 
-/**
---7) SPLIT into COUNTY TABLES
-
---a) Multnomah
-drop table if exists mult_streets cascade;
-create table mult_streets with oids as
-	select *
-	from osm_streets_final
-	where ST_Intersects(geom, (select geom from counties where county = 'Multnomah'));
-
---b) Washington
-drop table if exists wash_streets cascade;
-create table wash_streets with oids as
-	select *
-	from osm_streets_final
-	where ST_Intersects(geom, (select geom from counties where county = 'Washington'));
-
---c) Clackamas
-drop table if exists clac_streets cascade;
-create table clac_streets with oids as
-	select *
-	from osm_streets_final
-	where ST_Intersects(geom, (select geom from counties where county = 'Clackamas'));
-
-**/
 
 --DONE. Ran in 519681 ms on 10/18/12
 
 /**
-PGSQL2SHP INSTRUCTIONS
-In command prompt go to C:\Program Files\PostgreSQL\9.1\bin (or wherever your pgsql2shp is located)
-
-Enter the following to export the shapefile to your local system (change directory as needed), or use QGIS instead to connect to db and use “save as”:
-
-pgsql2shp -k -u username -P password -f file\path.shp database_name schema.table_name
-the 'k' parameter preserves the case of the column names, schema only needs to be entered if different than 'public'
-
-examples:
-pgsql2shp -k -u postgres -P postgres -f P:\temp\RLISsts.shp rlis_streets osm_streets
-pgsql2shp -k -u postgres -P postgres -f P:\temp\Multsts.shp rlis_streets mult_sts
-pgsql2shp -k -u postgres -P postgres -f P:\temp\Washsts.shp rlis_streets wash_sts
-pgsql2shp -k -u postgres -P postgres -f P:\temp\Clacsts.shp rlis_streets clac_sts
-
 Then run ogr2osm to convert from shapefile to .osm use the following command in the OSGeo4W window, or anywhere where GDAL is set up 
 with python bindings (which can be tough to do on Windows w/o OSGeo4W):
 Navigate the folder that contains the ogr2osm script then enter the following:

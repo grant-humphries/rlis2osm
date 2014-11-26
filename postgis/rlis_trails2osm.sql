@@ -1,8 +1,4 @@
 --RLIS trails to OSM attribute conversion, November 2012 by Grant Humphries for TriMet 
---initially modeled after Mele Sax-Barnett's RLIS streets conversion
-
---To import the RLIS trails shapefile into PostGIS use the following command in the command prompt: 
---shp2pgsql -I -s 2913 \\gisstore\gis\Rlis\TRANSIT\trails.shp rlis_trails | psql -U postgres -d rlis_trails
 
 --client encoding is being changed from 'WIN1252' to 'UTF8', the when in the former state
 --an error was being thrown when running this script with a batch file on Windows 7.  The
@@ -168,10 +164,6 @@ UPDATE osm_trails set name = replace(name, ' On ', ' on ');
 UPDATE osm_trails set name = replace(name, ' The ', ' the ');
 UPDATE osm_trails set name = replace(name, ' At ', ' at ');
 UPDATE osm_trails set name = replace(name, ' - Connector', '') WHERE (name LIKE '%Connector%Connector%');
-UPDATE osm_trails set name = replace(name, ' - Connector', ' Connector');
-UPDATE osm_trails set name = replace(name, ' - Access', ' Access');
-UPDATE osm_trails set name = replace(name, ' - Sidewalk', ' Sidewalk');
-UPDATE osm_trails set name = replace(name, ' - Crosswalk', ' Crosswalk');
 
 --Street prefixes
 UPDATE osm_trails set name = replace(name, 'N ', 'North ');
@@ -230,28 +222,6 @@ UPDATE osm_trails set name = replace(name, 'Tbbv', 'TBBV');
 
 --MAX is most common name, most folks don't know Metropolitan Area eXpress
 UPDATE osm_trails set name = replace(name, 'Max ', 'MAX ');
-
---Fixes errors in proper case script
-UPDATE osm_trails set name = replace(name, ' c ', ' C ');
-UPDATE osm_trails set name = replace(name, ' e ', ' E ');
-
---Ad-hoc fix of capitalization of letters immeadiately after numebers :(
-UPDATE osm_trails set name = replace(name, '783a', '783A');
-UPDATE osm_trails set name = replace(name, '99e', '99E');
-UPDATE osm_trails set name = replace(name, '601a', '601A');
-UPDATE osm_trails set name = replace(name, '420c', '420C');
-UPDATE osm_trails set name = replace(name, '674a', '674A');
-UPDATE osm_trails set name = replace(name, '401b', '401B');
-UPDATE osm_trails set name = replace(name, '13a', '13A');
-UPDATE osm_trails set name = replace(name, '7a', '7A');
-UPDATE osm_trails set name = replace(name, '793a', '793A');
-UPDATE osm_trails set name = replace(name, '564a', '564A');
-UPDATE osm_trails set name = replace(name, '441a', '441A');
-UPDATE osm_trails set name = replace(name, '742a', '742A');
-UPDATE osm_trails set name = replace(name, '402a', '402A');
-UPDATE osm_trails set name = replace(name, '755b', '755B');
-UPDATE osm_trails set name = replace(name, '401e', '401E');
-UPDATE osm_trails set name = replace(name, '424a', '424A');
 
 --b) Remove abbreviations from "alt_name"
 --Removes extra spaces
@@ -333,11 +303,8 @@ UPDATE osm_trails set systemname = replace(systemname, 'Chiefain', 'Chieftain');
 UPDATE osm_trails set systemname = replace(systemname, 'Esl ', 'Elementary School ');
 UPDATE osm_trails set systemname = replace(systemname, 'Tanasbource', 'Tanasbourne');
 UPDATE osm_trails set systemname = replace(systemname, 'Wilamette', 'Willamette');
-UPDATE osm_trails set systemname = replace(systemname, ' l ', ' L ');
 UPDATE osm_trails set systemname = replace(systemname, 'Southwest Pedestrian Walkway', 'Southwest Pedestrian Walkways');
 
---Ad-hoc fix of capitolization of letters immeadiately after numebers :(
-UPDATE osm_trails set systemname = replace(systemname, '99e', '99E');
 
 --Unknown abbreviations switched back to caps
 UPDATE osm_trails set systemname = replace(systemname, 'Pbh', 'PBH');
