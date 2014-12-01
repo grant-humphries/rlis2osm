@@ -2,7 +2,7 @@
 --PostGreSQL Version: 9.3
 ---------------------------------
 
---Convert Strings to title case 
+--Convert a PostGreSQL String to Title Case 
 --Function from "Jonathan Brinkman" <JB(at)BlackSkyTech(dot)com> 
 --http://archives.postgresql.org/pgsql-sql/2010-09/msg00088.php
 --modified to suit this project by Grant Humphries
@@ -71,7 +71,7 @@ called on null input
 security invoker
 cost 100;
 
-/* Examples of funtionality
+/* Examples of functionality
 select * from Format_TitleCase('MR DOG BREATH');
 select * from Format_TitleCase('each word, mcclure of this string:shall be transformed');
 select * from Format_TitleCase(' EACH WORD HERE SHALL BE TRANSFORMED TOO incl. mcdonald o''neil o''malley mcdervet');

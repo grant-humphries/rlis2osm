@@ -1,7 +1,6 @@
 ::Convert RLIS streets and trails into .osm format so that it can be used as an aid in editing osm
 @echo off
 setlocal EnableDelayedExpansion
-echo "start time is: %time%"
 
 ::Set postgres parameters
 set db_name=rlis2osm
@@ -18,6 +17,8 @@ set script_workspace=G:\PUBLIC\OpenStreetMap\rlis2osm
 set export_workspace=G:\PUBLIC\OpenStreetMap\data\RLIS_osm
 
 set or_spn=2913
+set rlis_streets_shp=%rlis_workspace%\STREETS\streets.shp
+set rlis_trails_shp=%rlis_workspace%\TRANSIT\trails.shp
 
 call:createPostgisDb
 call:loadRlisShapefiles
@@ -44,11 +45,9 @@ goto:eof
 :loadRlisShapefiles
 ::Load rlis streets and trails into new postgis Db
 
-set rlis_streets_shp=%rlis_workspace%\STREETS\streets.shp
 shp2pgsql -s %or_spn% -D -I %rlis_streets_shp% rlis_streets ^
 	| psql -q -h %pg_host% -U %pg_user% -d %db_name%
 
-set rlis_trails_shp=%rlis_workspace%\TRANSIT\trails.shp
 shp2pgsql -s %or_spn% -D -I %rlis_trails_shp% rlis_trails ^
 	| psql -q -h %pg_host% -U %pg_user% -d %db_name%
 
@@ -58,13 +57,18 @@ goto:eof
 :executeAttributeConversion
 ::Run scripts that convert attributes to OSM nomenclature for streets and trails
 
+::create function that converts postgres strings to tile case, since it's a
+::database object it will then be able to be called by any subsequent script
+set tcase_script=%script_workspace%\postgis\string2titlecase.sql
+psql -q -h %pg_host% -d %db_name% -U %pg_user% -f %tcase_script%
+
 echo "Street attribute conversion beginning, start time is: %time:~0,8%"
 set streets_script=%script_workspace%\postgis\rlis_streets2osm.sql
 psql -q -h %pg_host% -d %db_name% -U %pg_user% -f %streets_script%
 
 echo "Trail attribute conversion beginning, start time is: %time:~0,8%"
 set trails_script=%script_workspace%\postgis\rlis_trails2osm.sql
-psql -q -h %pg_host% -d %db_name% -U %pg_user% -f %trails_script%
+::psql -q -h %pg_host% -d %db_name% -U %pg_user% -f %trails_script%
 
 goto:eof
 

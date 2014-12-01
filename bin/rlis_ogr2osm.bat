@@ -29,3 +29,5 @@ python %ogr2osm_command% -f -e %rlis_proj% -o %trails_osm% -t %trails_trans% %tr
 
 echo "rlis to osm conversion completed"
 echo "end time is: %time%"
+
+::https://github.com/pnorman/ogr2osm/pull/29
