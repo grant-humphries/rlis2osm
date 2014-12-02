@@ -13,7 +13,7 @@ set /p pgpassword="Enter postgres password:"
 
 ::Set workspaces and project global project variables
 set rlis_workspace=G:\Rlis
-set script_workspace=G:\PUBLIC\OpenStreetMap\rlis2osm
+set code_workspace=G:\PUBLIC\OpenStreetMap\rlis2osm
 set export_workspace=G:\PUBLIC\OpenStreetMap\data\RLIS_osm
 
 set or_spn=2913
@@ -38,7 +38,7 @@ goto:eof
 dropdb -h %pg_host% -U %pg_user% --if-exists -i %db_name%
 createdb -O %pg_user% -h %pg_host% -U %pg_user% %db_name%
 
-::Spatially enable the Db
+::spatially enable the Db
 set pgis_q="CREATE EXTENSION postgis;"
 psql -d %db_name% -h %pg_host% -U %pg_user% -c %pgis_q%
 
@@ -62,15 +62,15 @@ goto:eof
 
 ::create function that converts postgres strings to tile case, since it's a
 ::database object it will then be able to be called by any subsequent script
-set tcase_script=%script_workspace%\postgis\string2titlecase.sql
+set tcase_script=%code_workspace%\postgis\string2titlecase.sql
 psql -q -h %pg_host% -d %db_name% -U %pg_user% -f %tcase_script%
 
 echo "Street attribute conversion beginning, start time is: %time:~0,8%"
-set streets_script=%script_workspace%\postgis\rlis_streets2osm.sql
+set streets_script=%code_workspace%\postgis\rlis_streets2osm.sql
 psql -q -h %pg_host% -d %db_name% -U %pg_user% -f %streets_script%
 
 echo "Trail attribute conversion beginning, start time is: %time:~0,8%"
-set trails_script=%script_workspace%\postgis\rlis_trails2osm.sql
+set trails_script=%code_workspace%\postgis\rlis_trails2osm.sql
 ::psql -q -h %pg_host% -d %db_name% -U %pg_user% -f %trails_script%
 
 goto:eof
@@ -90,7 +90,7 @@ for %%i in (%rlis_streets_shp%) do (
 	set mod_yr_mon=!mod_date_time:~6,4!_!mod_date_time:~0,2!
 )
 
-::Create a sub-folder in export directory based on the modified date
+::create a sub-folder in export directory based on the modified date
 set current_export=%export_workspace%\%mod_yr_mon%
 if not exist %current_export% mkdir %current_export%
 
@@ -106,8 +106,8 @@ goto:eof
 set osgeo4w_shell=C:\OSGeo4W64\OSGeo4W.bat
 set rlis_ogr2osm=G:\PUBLIC\OpenStreetMap\rlis2osm\rlis_ogr2osm.bat
 
-::The last six variables called are parameters passed to the osgeo4w batch file
-start %osgeo4w_shell% call %rlis_ogr2osm% %or_spn% %current_export% ^
-	%db_name% %pg_host% %pg_user% %pgpassword%
+::the last seven variables called are parameters passed to the osgeo4w batch file
+start %osgeo4w_shell% call %rlis_ogr2osm% %db_name% %pg_host% ^
+	%pg_user% %pgpassword% %code_workspace% %current_export% %or_spn%
 
 goto:eof

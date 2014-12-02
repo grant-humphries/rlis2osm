@@ -4,24 +4,28 @@
 setlocal EnableDelayedExpansion
 
 ::Assign parameters passed to this file to variables with descriptive names
-set or_spn=%1
-set current_export=%2
-set db_name=%3
-set pg_host=%4
-set pg_user=%5
-set pgpassword=%6
+set db_name=%1
+set pg_host=%2
+set pg_user=%3
+set pgpassword=%4
+set code_workspace=%5
+set current_export=%6
+set or_spn=%7
 
 ::Set ogr2osm variables, see paramaters, etc. for ogr2osm tool here:
 ::https://github.com/pnorman/ogr2osm/blob/master/Readme.md
 set ogr2osm_workspace=P:\ogr2osm
 set ogr2osm_cmd=%ogr2osm_workspace%\ogr2osm.py
-set streets_trans=%ogr2osm_workspace%\translations\rlis_streets_trans.py
-set trails_trans=%ogr2osm_workspace%\translations\rlis_trails_trans.py
+set streets_trans=%code_workspace%\ogr2osm\rlis_streets_trans.py
+set trails_trans=%code_workspace%\ogr2osm\rlis_trails_trans.py
 
 ::Set dataset variables
+set streets_tbl=osm_streets
 set rlis_streets_osm=%current_export%\rlis_streets.osm
-set rlis_trails_osm=%current_export%\rlis_trails.osm
 set osm_streets_shp=%shp_export%\rlis_osm_streets.shp
+
+set trails_tbl=osm_trails
+set rlis_trails_osm=%current_export%\rlis_trails.osm
 set osm_trails_shp=%shp_export%\rlis_osm_trails.shp
 
 call:shp2osm
@@ -37,7 +41,19 @@ goto:eof
 ::Function section begins here
 
 :pgsql2osm
-::https://github.com/pnorman/ogr2osm/pull/29
+::The functionality of converting pgsql data to osm has not quite yet been implemented,
+::a pull request that will do this has been submitted, but not yet accepted, see the 
+::following ticket to track progress: https://github.com/pnorman/ogr2osm/pull/29
+
+set st_sql_param="SELECT * FROM %streets_tbl%"
+set st_pgsql_string=PG:dbname=%db_name% user=%pg_user% host=%pg_host% --sql %st_sql_param%
+python %ogr2osm_cmd% -e %or_spn% -f -o %rlis_streets_osm% ^
+	-t %streets_trans% %st_pgsql_string%
+
+set tr_sql_param="SELECT * FROM %trails_tbl%"
+set tr_pgsql_string=PG:dbname=%db_name% user=%pg_user% host=%pg_host% --sql %tr_sql_param%
+python %ogr2osm_cmd% -e %or_spn% -f -o %rlis_streets_osm% ^
+	-t %streets_trans% %tr_pgsql_string%
 
 goto:eof
 
@@ -50,24 +66,30 @@ goto:eof
 set shp_export=%current_export%\shp
 if not exist %shp_export% mkdir %shp_export%
 
-::Export the converted streets and trails back to shapefile
+::export the converted streets and trails back to shapefile
 ::-k parameter retains case of field names (will be all caps otherwise)
-set streets_tbl=osm_streets
-pgsql2shp -k -h %pg_host% -u %pg_user% -P %pgpassword% -f %osm_streets_shp% %db_name% %streets_tbl%
+pgsql2shp -k -h %pg_host% -u %pg_user% -P %pgpassword% ^
+	-f %osm_streets_shp% %db_name% %streets_tbl%
 
-set trails_tbl=osm_trails
-::pgsql2shp -k -h %pg_host% -u %pg_user% -P %pgpassword% -f %osm_trails_shp% %db_name% %trails_tbl%
+::pgsql2shp -k -h %pg_host% -u %pg_user% -P %pgpassword% ^
+::	-f %osm_trails_shp% %db_name% %trails_tbl%
 
 goto:eof
 
 
 :shp2osm
-::
+::Convert rlis-osm shapefiles into .osm spatial data format
 
+::convert pgsql data into shapefiles
 call:export2shp
 
-::Run the conversion tool
-python %ogr2osm_cmd% -f -e %or_spn% -o %rlis_streets_osm% -t %streets_trans% %osm_streets_shp%
-python %ogr2osm_cmd% -f -e %or_spn% -o %rlis_trails_osm% -t %trails_trans% %osm_trails_shp%
+::Convert shapefiles into osm data, the -e parameter indicates the spatial reference
+::of the input data (output is always wgs84), -f overwrites any existing data, -t is
+::the transaltion files that modifies attributes
+python %ogr2osm_cmd% -e %or_spn% -f -o %rlis_streets_osm% ^
+	-t %streets_trans% %osm_streets_shp%
+
+python %ogr2osm_cmd% -e %or_spn% -f -o %rlis_trails_osm% ^
+	-t %trails_trans% %osm_trails_shp%
 
 goto:eof

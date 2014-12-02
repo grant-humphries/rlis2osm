@@ -1,17 +1,18 @@
+# Python Version: 2.7.5
+#--------------------------------
+
+# In this case the translation file is being used to expand fields (keys) that
+# had to be truncated due to the .dbf spec associated with shapefiles
+
 def filterTags(tags):
 	if tags is None:
 		return
 	newtags = {}
 	for (key, value) in tags.items():
 		if value != '':
-			# id is included here, but nor handled later because I want to get rid of it
-			if key not in ('localid', 'pc_left', 'pc_right', 'id'):
-				newtags[key] = value
+			if key == 'descriptn':
+				newtags['description'] = value
 			else:
-				if key == 'localid':
-					newtags['RLIS:localid'] = value
-				elif key == 'pc_left':
-					newtags['addr:postcode:left'] = value
-				elif key == 'pc_right':
-					newtags['addr:postcode:right'] = value
+				newtags[key] = value
+				
 	return newtags
