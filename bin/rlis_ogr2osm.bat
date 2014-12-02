@@ -20,6 +20,8 @@ set streets_trans=%code_workspace%\ogr2osm\rlis_streets_trans.py
 set trails_trans=%code_workspace%\ogr2osm\rlis_trails_trans.py
 
 ::Set dataset variables
+set shp_export=%current_export%\shp
+
 set streets_tbl=osm_streets
 set rlis_streets_osm=%current_export%\rlis_streets.osm
 set osm_streets_shp=%shp_export%\rlis_osm_streets.shp
@@ -28,7 +30,7 @@ set trails_tbl=osm_trails
 set rlis_trails_osm=%current_export%\rlis_trails.osm
 set osm_trails_shp=%shp_export%\rlis_osm_trails.shp
 
-call:shp2osm
+call:pgsql-shp2osm
 ::call:pgsql2osm
 
 echo "rlis to osm conversion completed"
@@ -63,7 +65,6 @@ goto:eof
 ::osm, back into shapefile format
 
 ::create folder for exported shapefiles
-set shp_export=%current_export%\shp
 if not exist %shp_export% mkdir %shp_export%
 
 ::export the converted streets and trails back to shapefile
@@ -77,7 +78,7 @@ pgsql2shp -k -h %pg_host% -u %pg_user% -P %pgpassword% ^
 goto:eof
 
 
-:shp2osm
+:pgsql-shp2osm
 ::Convert rlis-osm shapefiles into .osm spatial data format
 
 ::convert pgsql data into shapefiles

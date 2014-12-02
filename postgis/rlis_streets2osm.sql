@@ -8,7 +8,7 @@
 --batch file on windows 7 the encoding is 'WIN1252' which cause errors to be thrown
 set client_encoding to 'UTF8';
 
-vaccum analyze rlis_streets;
+vacuum analyze rlis_streets;
 
 --1) create table to hold osm streets
 drop table if exists osm_sts_staging cascade;
@@ -25,7 +25,7 @@ create table osm_sts_staging (
 	--fields below are for staging for name expansion
 	st_prefix text,
 	st_name text,
-	st_type text
+	st_type text,
 	st_direction text
 );
 
@@ -116,7 +116,7 @@ insert into osm_sts_staging (geom, st_prefix, st_name, st_type, st_direction,
 			when rs.type in (5402) then 'no'
 			else null end,
 		--get osm 'surface' values from rlis 'type'
-		case when rd.type in (2000) then 'unpaved'
+		case when rs.type in (2000) then 'unpaved'
 			else null end,
 		--get osm 'layer' values, ground level 1 in rlis, but 0 for osm
 		case when f_zlev = t_zlev then
@@ -129,105 +129,105 @@ insert into osm_sts_staging (geom, st_prefix, st_name, st_type, st_direction,
 					when f_zlev > 0 and t_zlev > 0 then greatest(f_zlev, t_zlev) - 1
 					when f_zlev < 0 and t_zlev < 0 then least(f_zlev, t_zlev)
 					when f_zlev < 0 and t_zlev > 0 then f_zlev end
-			end,
+			end
 	from rlis_streets rs;
 
-vaccum analyze osm_sts_staging;
+vacuum analyze osm_sts_staging;
 
 
 --3) Expand abbreviations that are within the street basename
-update osm_sts_staging set streetname = 
-	regexp_replace(streetname, '(\s)Av[e]?(-|\s|$)', '\1Avenue\2', 'g');
-update osm_sts_staging set streetname = 
-	regexp_replace(streetname, '(\s)Blvd(-|\s|$)', '\1Boulevard\2 ', 'g');
-update osm_sts_staging set streetname = 
-	regexp_replace(streetname, '(\s)Brg(-|\s|$)', '\1Bridge\2 ', 'g');
-update osm_sts_staging set streetname = 
-	regexp_replace(streetname, '(\s)Ct(-|\s|$)', '\1Court\2 ', 'g');
-update osm_sts_staging set streetname = 
-	regexp_replace(streetname, '(\s)Dr(-|\s|$)', '\1Drive\2 ', 'g');
-update osm_sts_staging set streetname = 
-	regexp_replace(streetname, '(^|\s|-)Fwy(-|\s|$)', '\1Freeway\2 ', 'g');
-update osm_sts_staging set streetname = 
-	regexp_replace(streetname, '(^|\s|-)Hwy(-|\s|$)', '\1Highway\2 ', 'g');
-update osm_sts_staging set streetname = 
-	regexp_replace(streetname, '(\s)Pkwy(-|\s|$)', '\1Parkway\2 ', 'g');
-update osm_sts_staging set streetname = 
-	regexp_replace(streetname, '(\s)Pl(-|\s|$)', '\1Place\2', 'g');
-update osm_sts_staging set streetname = 
-	regexp_replace(streetname, '(\s)Rd(-|\s|$)', '\1Road\2 ', 'g')
---St--> Street (will not occur at beginning of a streetname)
-update osm_sts_staging set streetname = 
-	regexp_replace(streetname, '(\s)St(-|\s|$)', '\1Street\2 ', 'g');
+update osm_sts_staging set st_name = 
+	regexp_replace(st_name, '(\s)Av[e]?(-|\s|$)', '\1Avenue\2', 'g');
+update osm_sts_staging set st_name = 
+	regexp_replace(st_name, '(\s)Blvd(-|\s|$)', '\1Boulevard\2 ', 'g');
+update osm_sts_staging set st_name = 
+	regexp_replace(st_name, '(\s)Brg(-|\s|$)', '\1Bridge\2 ', 'g');
+update osm_sts_staging set st_name = 
+	regexp_replace(st_name, '(\s)Ct(-|\s|$)', '\1Court\2 ', 'g');
+update osm_sts_staging set st_name = 
+	regexp_replace(st_name, '(\s)Dr(-|\s|$)', '\1Drive\2 ', 'g');
+update osm_sts_staging set st_name = 
+	regexp_replace(st_name, '(^|\s|-)Fwy(-|\s|$)', '\1Freeway\2 ', 'g');
+update osm_sts_staging set st_name = 
+	regexp_replace(st_name, '(^|\s|-)Hwy(-|\s|$)', '\1Highway\2 ', 'g');
+update osm_sts_staging set st_name = 
+	regexp_replace(st_name, '(\s)Pkwy(-|\s|$)', '\1Parkway\2 ', 'g');
+update osm_sts_staging set st_name = 
+	regexp_replace(st_name, '(\s)Pl(-|\s|$)', '\1Place\2', 'g');
+update osm_sts_staging set st_name = 
+	regexp_replace(st_name, '(\s)Rd(-|\s|$)', '\1Road\2 ', 'g');
+--St--> Street (will not occur at beginning of a st_name)
+update osm_sts_staging set st_name = 
+	regexp_replace(st_name, '(\s)St(-|\s|$)', '\1Street\2 ', 'g');
 
 --Expand other abbreviated parts of street basename
-update osm_sts_staging set streetname = 
-	regexp_replace(streetname, '(^|\s|-)Cc(-|\s|$)', '\1Community College\2', 'g');
-update osm_sts_staging set streetname = 
-	regexp_replace(streetname, '(^|\s|-)Co(-|\s|$)', '\1County\2', 'g');
-update osm_sts_staging set streetname = 
-	regexp_replace(streetname, '(\s)Jr(-|\s|$)', '\1Junior\2', 'g');
+update osm_sts_staging set st_name = 
+	regexp_replace(st_name, '(^|\s|-)Cc(-|\s|$)', '\1Community College\2', 'g');
+update osm_sts_staging set st_name = 
+	regexp_replace(st_name, '(^|\s|-)Co(-|\s|$)', '\1County\2', 'g');
+update osm_sts_staging set st_name = 
+	regexp_replace(st_name, '(\s)Jr(-|\s|$)', '\1Junior\2', 'g');
 --Mt at beginning of name is 'Mount' later in name is 'Mountain'
-update osm_sts_staging set streetname = 
-	regexp_replace(streetname, '(^|-|-\s)Mt(\s)', '\1Mount\2', 'g');
-update osm_sts_staging set streetname = 
-	regexp_replace(streetname, '(\s)Mt(-|\s|$)', '\1Mountain\2', 'g');
-update osm_sts_staging set streetname = 
-	regexp_replace(streetname, '(^|\s|-)Nfd(-|\s|$)', '\1National Forest Development Road\2', 'g');
-update osm_sts_staging set streetname = 
-	regexp_replace(streetname, '(^|\s|-)Pcc(-|\s|$)', '\1Portland Community College\2', 'g');
-update osm_sts_staging set streetname = 
-	regexp_replace(streetname, '(\s)Tc(-|\s|$)', '\1Transit Center\2', 'g');
+update osm_sts_staging set st_name = 
+	regexp_replace(st_name, '(^|-|-\s)Mt(\s)', '\1Mount\2', 'g');
+update osm_sts_staging set st_name = 
+	regexp_replace(st_name, '(\s)Mt(-|\s|$)', '\1Mountain\2', 'g');
+update osm_sts_staging set st_name = 
+	regexp_replace(st_name, '(^|\s|-)Nfd(-|\s|$)', '\1National Forest Development Road\2', 'g');
+update osm_sts_staging set st_name = 
+	regexp_replace(st_name, '(^|\s|-)Pcc(-|\s|$)', '\1Portland Community College\2', 'g');
+update osm_sts_staging set st_name = 
+	regexp_replace(st_name, '(\s)Tc(-|\s|$)', '\1Transit Center\2', 'g');
 --St--> Saint (will only occur at the beginning of a street name)
-update osm_sts_staging set streetname = 
-	regexp_replace(streetname, '(^|-|-\s)(Mt\s|Mount\s|Old\s)?St[.]?(\s)', '\1\2Saint\3', 'g');
-update osm_sts_staging set streetname = 
-	regexp_replace(streetname, '(^|\s|-)Us(-|\s|$)', '\1United States\2', 'g');
+update osm_sts_staging set st_name = 
+	regexp_replace(st_name, '(^|-|-\s)(Mt\s|Mount\s|Old\s)?St[.]?(\s)', '\1\2Saint\3', 'g');
+update osm_sts_staging set st_name = 
+	regexp_replace(st_name, '(^|\s|-)Us(-|\s|$)', '\1United States\2', 'g');
 
 --special case grammar fixes and name expansions
-update osm_sts_staging set streetname = 
+update osm_sts_staging set st_name = 
 	--the '~' operator does a posix regular expression comparison between strings
-	case when streetname ~ '.*(^|\s|-)O(brien|day|neal|neil[l]?)(-|\s|$).*'
-	then format_titlecase(regexp_replace(streetname, 
+	case when st_name ~ '.*(^|\s|-)O(brien|day|neal|neil[l]?)(-|\s|$).*'
+	then format_titlecase(regexp_replace(st_name, 
 		'(^|\s|-)O(brien|day|neal|neil[l]?)(-|\s|$)', '\1O''\2\3', 'g'))
-	else streetname end;
+	else st_name end;
 
-update osm_sts_staging set streetname = 
-	case when streetname ~ '.*(^|\s|-)Ft\sOf\s.*' then 
-		case when streetname ~ '.*(^|\s|-)Holladay(-|\s|$).*'
-			then regexp_replace(streetname, 'Ft\sOf\sN', 'Foot of North' 'g')
-		when streetname ~ '.*(^|\s|-)(Madison|Marion)(-|\s|$).*'
-			then regexp_replace(streetname, 'Ft\sOf\sSe', 'Foot of Southeast' 'g')
-		else streetname end
-	else streetname end;
+update osm_sts_staging set st_name = 
+	case when st_name ~ '.*(^|\s|-)Ft\sOf\s.*' then 
+		case when st_name ~ '.*(^|\s|-)Holladay(-|\s|$).*'
+			then regexp_replace(st_name, 'Ft\sOf\sN', 'Foot of North', 'g')
+		when st_name ~ '.*(^|\s|-)(Madison|Marion)(-|\s|$).*'
+			then regexp_replace(st_name, 'Ft\sOf\sSe', 'Foot of Southeast', 'g')
+		else st_name end
+	else st_name end;
 
 --more special case name expansions
 --for these an index is created and matches are made on the full name of the
 --field to decrease run time of script
-drop index if exists streetname_ix cascade;
-create index streetname_ix on osm_sts_staging using BTREE (streetname);
+drop index if exists st_name_ix cascade;
+create index st_name_ix on osm_sts_staging using BTREE (st_name);
 
 vacuum analyze osm_sts_staging;
 
-update osm_sts_staging set streetname = 'Bonneville Power Administration'
-	where streetname = 'Bpa';
-update osm_sts_staging set streetname = 'JQ Adams'
-	where streetname = 'Jq Adams';
-update osm_sts_staging set streetname = 'Sunnyside Hospital-Mount Scott Medical Transit Center'
-	where streetname = 'Sunnyside Hosp-Mount Scott Med Transit Center';
+update osm_sts_staging set st_name = 'Bonneville Power Administration'
+	where st_name = 'Bpa';
+update osm_sts_staging set st_name = 'JQ Adams'
+	where st_name = 'Jq Adams';
+update osm_sts_staging set st_name = 'Sunnyside Hospital-Mount Scott Medical Transit Center'
+	where st_name = 'Sunnyside Hosp-Mount Scott Med Transit Center';
 
 
 --4) Now that abbreviations in street names have been expanded concatenate their parts
 --concat strategy via http://www.laudatio.com/wordpress/2009/04/01/a-better-concat-for-postgresql/
 update osm_sts_staging set 
-	name = array_to_string(array[prefix, streetname, ftype, direction], ' ')
+	name = array_to_string(array[st_prefix, st_name, sT_type, st_direction], ' ')
 	where highway != 'motorway_link' 
 		or highway is null;
 
 --motorway_link's will have descriptions rather than names via osm convention
 --source: http://wiki.openstreetmap.org/wiki/Link_%28highway%29
 update osm_sts_staging set 
-	descriptn = array_to_string(array[prefix, streetname, ftype, direction], ' ')
+	descriptn = array_to_string(array[st_prefix, st_name, st_type, st_direction], ' ')
 	where highway = 'motorway_link';
 
 
@@ -246,19 +246,5 @@ create table osm_streets with oids as
 			from osm_sts_staging 
 			group by access, descriptn, highway, layer, name,
 				service, surface) as unioned_streets;
-
-
-
-/**
-Then run ogr2osm to convert from shapefile to .osm use the following command in the OSGeo4W window, or anywhere where GDAL is set up 
-with python bindings (which can be tough to do on Windows w/o OSGeo4W):
-Navigate the folder that contains the ogr2osm script then enter the following:
-python ogr2osm.py -f -e <projection epsg> -o <output/file/path> -t <translation file> <input file>
-The translation file converts tags to more OSM friendly format (but of course you must write this code), we've chosen to handle most of
-this in SQL/PostGIS, but I've written a translation files for streets and trails that put the finishing touches on things
-
-example:
-python ogr2osm.py -f -e 2913 -o P:\temp\clack_streets.osm -t rlis_streets_trans.py P:\temp\clac_sts.shp
-**/
 
 reset client_encoding;

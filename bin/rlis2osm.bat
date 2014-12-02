@@ -20,11 +20,11 @@ set or_spn=2913
 set rlis_streets_shp=%rlis_workspace%\STREETS\streets.shp
 set rlis_trails_shp=%rlis_workspace%\TRANSIT\trails.shp
 
-call:createPostgisDb
-call:loadRlisShapefiles
+::call:createPostgisDb
+::call:loadRlisShapefiles
 call:executeAttributeConversion
 call:createExportFolder
-call:export2osm
+::call:export2osm
 
 goto:eof
 
@@ -103,8 +103,9 @@ goto:eof
 ::ogr2osm which will be used to get the data into .osm format requires gdal with python bindings,
 ::at this time it is easiest for me to access the version of of gdal that I have with this add-on
 ::via the OSGeo4W Shell.  Thus that shell needs to be called
-set osgeo4w_shell=C:\OSGeo4W64\OSGeo4W.bat
-set rlis_ogr2osm=G:\PUBLIC\OpenStreetMap\rlis2osm\rlis_ogr2osm.bat
+set osgeo4w_shell=C:\OSGeo4W\OSGeo4W.bat
+::set osgeo4w_shell=C:\OSGeo4W64\OSGeo4W.bat
+set rlis_ogr2osm=%code_workspace%\bin\rlis_ogr2osm.bat
 
 ::the last seven variables called are parameters passed to the osgeo4w batch file
 start %osgeo4w_shell% call %rlis_ogr2osm% %db_name% %pg_host% ^
