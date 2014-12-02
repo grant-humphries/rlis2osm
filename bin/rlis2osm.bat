@@ -23,10 +23,13 @@ set rlis_trails_shp=%rlis_workspace%\TRANSIT\trails.shp
 call:createPostgisDb
 call:loadRlisShapefiles
 call:executeAttributeConversion
+call:createExportFolder
+call:export2osm
 
 goto:eof
 
-::---------------------------
+
+::-------------------------------------------
 ::Function section begins here
 
 :createPostgisDb
@@ -73,8 +76,9 @@ set trails_script=%script_workspace%\postgis\rlis_trails2osm.sql
 goto:eof
 
 
-:export2osm
-::Export converted streets and trails to .osm format
+:createExportFolder
+::Create target folder for output osm files that reflects source rlis 
+::files' release date
 
 ::Get the last modified date from the rlis streets shapefile
 for %%i in (%rlis_streets_shp%) do (
@@ -90,27 +94,20 @@ for %%i in (%rlis_streets_shp%) do (
 set current_export=%export_workspace%\%mod_yr_mon%
 if not exist %current_export% mkdir %current_export%
 
-::Convert the modified shapefiles to .osm format.  The code that will do this must be run in the 
-::OSGeo4W Shell.  Thus that shell is launched below and a batch file containing that code is run
-::there and parameters needed from this file are passed to that script
-set osgeo4w_shell=C:\OSGeo4W64\OSGeo4W.bat
-set pgsql2osm_script=G:\PUBLIC\OpenStreetMap\rlis2osm\rlis_shp2rlis_dot_osm.bat
-
-::The last six variables called are parameters passed to the osgeo4w batch file
-start %osgeo4w_shell% call %pgsql2osm_script% %or_spn% %current_export% ^
-	%db_name% %pg_host% %pg_user% %pgpassword%
-
 goto:eof
 
 
+:export2osm
+::Export converted streets and trails to .osm format
 
+::ogr2osm which will be used to get the data into .osm format requires gdal with python bindings,
+::at this time it is easiest for me to access the version of of gdal that I have with this add-on
+::via the OSGeo4W Shell.  Thus that shell needs to be called
+set osgeo4w_shell=C:\OSGeo4W64\OSGeo4W.bat
+set rlis_ogr2osm=G:\PUBLIC\OpenStreetMap\rlis2osm\rlis_ogr2osm.bat
 
-set shp_export=%export_workspace%\shp
-if not exist %shp_export% mkdir %shp_export%
+::The last six variables called are parameters passed to the osgeo4w batch file
+start %osgeo4w_shell% call %rlis_ogr2osm% %or_spn% %current_export% ^
+	%db_name% %pg_host% %pg_user% %pgpassword%
 
-::Export the modified streets and trails back to shapefile
-set streets_shp_mod=%shp_export%\rlis_osm_streets.shp
-set trails_shp_mod=%shp_export%\rlis_osm_trails.shp
-
-pgsql2shp -k -h %pg_host% -u %pg_user% -P %pgpassword% -f %streets_shp_mod% %db_name% osm_streets_final
-pgsql2shp -k -h %pg_host% -u %pg_user% -P %pgpassword% -f %trails_shp_mod% %db_name% osm_trails_final
+goto:eof

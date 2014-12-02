@@ -16,7 +16,7 @@ create table osm_sts_staging (
 	id serial primary key,
 	geom geometry,
 	access text,
-	description text,
+	descriptn text, --to be renamed 'description'
 	highway text,
 	layer text,
 	name text,
@@ -227,7 +227,7 @@ update osm_sts_staging set
 --motorway_link's will have descriptions rather than names via osm convention
 --source: http://wiki.openstreetmap.org/wiki/Link_%28highway%29
 update osm_sts_staging set 
-	description = array_to_string(array[prefix, streetname, ftype, direction], ' ')
+	descriptn = array_to_string(array[prefix, streetname, ftype, direction], ' ')
 	where highway = 'motorway_link';
 
 
@@ -237,14 +237,14 @@ drop table if exists osm_streets cascade;
 create table osm_streets with oids as
 	--st_dump is essentially the opposite of 'group by', it unpacks multi-linestings (or multi-polygons) into its
 	--individual component parts and creates and entry in the table for each of those parts
-	select (ST_Dump(geom)).geom as geom, access, description,
+	select (ST_Dump(geom)).geom as geom, access, descriptn,
 		highway, layer, name, service, surface
 	--st_union merges all the grouped features into a single geometry collection and st_linemerege makes 
 	--connected segments into single unified lines where possible
-	from (select ST_LineMerge(ST_Union(geom)) as geom, access, description,
+	from (select ST_LineMerge(ST_Union(geom)) as geom, access, descriptn,
 				highway, layer, name, service, surface
 			from osm_sts_staging 
-			group by access, description, highway, layer, name,
+			group by access, descriptn, highway, layer, name,
 				service, surface) as unioned_streets;
 
 
