@@ -9,9 +9,7 @@ def filterTags(tags):
 	newtags = {}
 	for (key, value) in tags.items():
 		if value != '':
-			if key == 'trailid':
-				newtags['RLIS:trailid'] = value
-			elif key == 'systemname':
+			if key == 'systemname':
 				newtags['RLIS:systemname'] = value
 			elif key == 'mtr_vhcle':
 				newtags['motor_vehicle'] = value
