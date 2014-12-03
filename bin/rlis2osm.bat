@@ -2,6 +2,9 @@
 @echo off
 setlocal EnableDelayedExpansion
 
+echo "rlis to osm conversion beginning"
+echo "start time is: %time:~0,8%"
+
 ::Set postgres parameters
 set db_name=rlis2osm
 set pg_host=localhost
@@ -24,7 +27,7 @@ set rlis_trails_shp=%rlis_workspace%\TRANSIT\trails.shp
 ::call:loadRlisShapefiles
 call:executeAttributeConversion
 call:createExportFolder
-::call:export2osm
+call:export2osm
 
 goto:eof
 
@@ -104,7 +107,6 @@ goto:eof
 ::at this time it is easiest for me to access the version of of gdal that I have with this add-on
 ::via the OSGeo4W Shell.  Thus that shell needs to be called
 set osgeo4w_shell=C:\OSGeo4W\OSGeo4W.bat
-::set osgeo4w_shell=C:\OSGeo4W64\OSGeo4W.bat
 set rlis_ogr2osm=%code_workspace%\bin\rlis_ogr2osm.bat
 
 ::the last seven variables called are parameters passed to the osgeo4w batch file

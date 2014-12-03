@@ -88,5 +88,4 @@ select * from Format_TitleCase(' EACH WORD HERE SHALL BE TRANSFORMED TOO incl. m
 select * from Format_TitleCase('mcclure and others');
 select * from Format_TitleCase('J & B ART');
 select * from Format_TitleCase('J&B ART');
-select * from Format_TitleCase('J&B ART J & B ART this''s art''s house''s problem''s 0''shay o''should work''s EACH WORD HERE SHALL BE TRANSFORMED TOO incl. mcdonald o''neil o''malley mcdervet');
-*/
+select * from Format_TitleCase('J&B ART J & B ART this''s art''s house''s problem''s 0''shay o''should work''s EACH WORD HERE SHALL BE TRANSFORMED TOO incl. mcdonald o''neil o''malley mcdervet');*/

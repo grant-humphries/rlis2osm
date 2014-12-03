@@ -16,12 +16,14 @@ create table osm_sts_staging (
 	id serial primary key,
 	geom geometry,
 	access text,
+	bridge text,
 	descriptn text, --to be renamed 'description'
 	highway text,
-	layer text,
+	layer int,
 	name text,
 	service text,
 	surface text,
+	tunnel text,
 	--fields below are for staging for name expansion
 	st_prefix text,
 	st_name text,
@@ -132,7 +134,18 @@ insert into osm_sts_staging (geom, st_prefix, st_name, st_type, st_direction,
 			end
 	from rlis_streets rs;
 
+
+--2) Add bridge and tunnel tags based on the layer value
+drop index if exists layer_ix cascade;
+create index layer_ix on osm_sts_staging using BTREE (layer);
+
 vacuum analyze osm_sts_staging;
+
+update osm_sts_staging set bridge = 'yes'
+	where layer > 0;
+
+update osm_sts_staging set tunnel = 'yes'
+	where layer < 0;
 
 
 --3) Expand abbreviations that are within the street basename
@@ -237,14 +250,14 @@ drop table if exists osm_streets cascade;
 create table osm_streets with oids as
 	--st_dump is essentially the opposite of 'group by', it unpacks multi-linestings (or multi-polygons) into its
 	--individual component parts and creates and entry in the table for each of those parts
-	select (ST_Dump(geom)).geom as geom, access, descriptn,
-		highway, layer, name, service, surface
+	select (ST_Dump(geom)).geom as geom, access, bridge, 
+		descriptn, highway, layer, name, service, surface, tunnel
 	--st_union merges all the grouped features into a single geometry collection and st_linemerege makes 
 	--connected segments into single unified lines where possible
-	from (select ST_LineMerge(ST_Union(geom)) as geom, access, descriptn,
-				highway, layer, name, service, surface
+	from (select ST_LineMerge(ST_Union(geom)) as geom, access, bridge, 
+				descriptn, highway, layer::text, name, service, surface, tunnel
 			from osm_sts_staging 
-			group by access, descriptn, highway, layer, name,
-				service, surface) as unioned_streets;
+			group by access, bridge, descriptn, highway, layer, 
+				name, service, surface, tunnel) as unioned_streets;
 
 reset client_encoding;
