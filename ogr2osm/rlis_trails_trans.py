@@ -9,14 +9,12 @@ def filterTags(tags):
 	newtags = {}
 	for (key, value) in tags.items():
 		if value != '':
-			if key == 'systemname':
-				newtags['RLIS:systemname'] = value
-			elif key == 'mtr_vhcle':
-				newtags['motor_vehicle'] = value
+			if key == 'abndnd_hwy':
+				newtags['abandoned:highway'] = value
 			elif key == 'cnstrctn':
 				newtags['construction'] = value
-			elif key == 'hwy_abndnd':
-				newtags['highway:abandoned'] = value
+			elif key == 'r_sysname':
+				newtags['RLIS:systemname'] = value
 			else:
 				newtags[key] = value
 	

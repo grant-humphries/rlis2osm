@@ -10,7 +10,7 @@ set client_encoding to 'UTF8';
 
 vacuum analyze rlis_streets;
 
---1) create table to hold osm streets
+--1) Create table to hold osm streets
 drop table if exists osm_sts_staging cascade;
 create table osm_sts_staging (
 	id serial primary key,
@@ -32,8 +32,9 @@ create table osm_sts_staging (
 );
 
 
---2) Populate osm streets staging table with rlis streets data and translate
---rlis attributes into osm tags
+--2) Populate osm streets staging table with rlis streets data and translate rlis 
+--attributes into osm tags, metadat on rlis streets fields is here:
+--http://rlisdiscovery.oregonmetro.gov/?action=viewDetail&layerID=556#
 insert into osm_sts_staging (geom, st_prefix, st_name, st_type, st_direction, 
 		highway, service, access, surface, layer)
 	select rs.geom, 
@@ -91,8 +92,7 @@ insert into osm_sts_staging (geom, st_prefix, st_name, st_type, st_direction,
 			when direction ilike 'W' then 'West'
 			when direction ilike 'WB' then 'Westbound'
 			else null end,
-		--convert rlis street to type to osm 'highway' values, metadata on rlis street 
-		--type is here: http://rlisdiscovery.oregonmetro.gov/?action=viewDetail&layerID=556#
+		--convert rlis street to type to osm 'highway' values
 		case when rs.type in (1110, 5101, 5201) then 'motorway'
 			when rs.type in (1120, 1121, 1122, 1123) then 'motorway_link'
 			--none of the rlis classes really map to trunk
