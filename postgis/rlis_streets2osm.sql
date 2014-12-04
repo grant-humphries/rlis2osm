@@ -154,7 +154,7 @@ update osm_sts_staging set st_name =
 update osm_sts_staging set st_name = 
 	regexp_replace(st_name, '(\s)Blvd(-|\s|$)', '\1Boulevard\2 ', 'g');
 update osm_sts_staging set st_name = 
-	regexp_replace(st_name, '(\s)Brg(-|\s|$)', '\1Bridge\2 ', 'g');
+	regexp_replace(st_name, '(\s)Br[g]?(-|\s|$)', '\1Bridge\2 ', 'g');
 update osm_sts_staging set st_name = 
 	regexp_replace(st_name, '(\s)Ct(-|\s|$)', '\1Court\2 ', 'g');
 update osm_sts_staging set st_name = 
@@ -193,7 +193,7 @@ update osm_sts_staging set st_name =
 	regexp_replace(st_name, '(\s)Tc(-|\s|$)', '\1Transit Center\2', 'g');
 --St--> Saint (will only occur at the beginning of a street name)
 update osm_sts_staging set st_name = 
-	regexp_replace(st_name, '(^|-|-\s)(Mt\s|Mount\s|Old\s)?St[.]?(\s)', '\1\2Saint\3', 'g');
+	regexp_replace(st_name, '(^|-|-\s)(Mt\s|Mount\s|Old\s)?St[\.]?(\s)', '\1\2Saint\3', 'g');
 update osm_sts_staging set st_name = 
 	regexp_replace(st_name, '(^|\s|-)Us(-|\s|$)', '\1United States\2', 'g');
 

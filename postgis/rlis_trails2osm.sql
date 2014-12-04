@@ -137,9 +137,15 @@ insert into osm_trls_staging (geom, abndnd_hwy, access, alt_name, bicycle, cnstr
 -use indexes here???
 
 --highway type 'footway' implies foot permissions, it's redundant to have this
---information in the 'foot' tag as well
+--information in the 'foot' tag as well, same goes for 'cycleway' and 'bridleway'
 update osm_trls_staging set foot to null
 	where highway = 'footway';
+
+update osm_trls_staging set bicycle to null
+	where highway = 'cycleway';
+
+update osm_trls_staging set horse to null
+	where highway = 'bridleway';
 
 --Move highway values into appropriate column for under construction, proposed 
 --and abandoned features
@@ -162,80 +168,144 @@ update osm_trls_staging
 --4) Remove Abbreviations and unwanted characters and descriptors from name, systemname, 
 --alt_name, and operator fields
 
---Add index to speed performance
-drop index if exists name_ix cascade;
-create index name_ix ON osm_trails using BTREE (name);
-
---Removes periods and extra spaces
+--remove any periods in trailname 
 update osm_trails set name = replace(name, '.', '');
+
+--expand street prefixes in trailname
+update osm_trls_staging set name = 
+	regexp_replace(name, '(^|-\s|-)N(\s)', '\1North\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(^|\s|-)Ne(\s)', '\1Northeast\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(^|-\s|-)E(\s)', '\1East\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(^|\s|-)Se(\s)', '\1Southeast\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(^|-\s|-)S(\s)', '\1South\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(^|\s|-)Sw(\s)', '\1Southwest\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(^|-\s|-)W(\s)', '\1West\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(^|\s|-)Nw(\s)', '\1Northwest\2', 'g');
+
+update osm_trls_staging set name = 
+	regexp_replace(name, '(^|\s|-)Nb(-|\s|$)', '\1Northbound\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(^|\s|-)Eb(-|\s|$)', '\1Eastbound\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(^|\s|-)Sb(-|\s|$)', '\1Southbound\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(^|\s|-)Wb(-|\s|$)', '\1Westbound\2', 'g');
+
+--expand street types in trailname
+update osm_trls_staging set name = 
+	regexp_replace(name, '(\s)Ave(-|\s|$)', '\1Avenue\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(\s)Blvd(-|\s|$)', '\1Boulevard\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(\s)Cir(-|\s|$)', '\1Circle\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(\s)Ct(-|\s|$)', '\1Court\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(\s)Dr(-|\s|$)', '\1Drive\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(^|\s|-)Hwy(-|\s|$)', '\1Highway\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(\s)Ln(-|\s|$)', '\1Lane\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(\s)Lp(-|\s|$)', '\1Loop\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(\s)Pkwy(-|\s|$)', '\1Parkway\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(\s)Pl(-|\s|$)', '\1Place\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(\s)Rd(-|\s|$)', '\1Road\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(\s)Sq(-|\s|$)', '\1Square\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(\s)St(-|\s|$)', '\1Street\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(\s)Ter[r]?(-|\s|$)', '\1Terrace\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(\s)Wy(-|\s|$)', '\1Way\2', 'g');
+
+--expand other abbreviations in trailname
+update osm_trls_staging set name = 
+	regexp_replace(name, '(\s)Assn(-|\s|$)', '\1Association\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(\s)Es(-|\s|$)', '\1Elementary School\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(^|\s|-)Hmwrs(-|\s|$)', '\1Homeowners\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(^|\s|-)Hoa(-|\s|$)', '\1Homeowners Association\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(\s)Jr(-|\s|$)', '\1Junior\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(\s)Llc(-|\s|$)', '\1Limited Liability Company\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(\s)Ms(-|\s|$)', '\1Middle School\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(^|\s|-)Mt(-|\s|$)', '\1Mount\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(^|\s|-)Ped(-|\s|$)', '\1Pedestrian\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(^|-\s|-)St(\s)', '\1Saint\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(\s)Tc(-|\s|$)', '\1Tranist Center\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(^|\s|-)Us(\s)', '\1United States\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(^|\s|-)Va(-|\s|$)', '\1Veteran Affairs\2', 'g');
+
+--expand special cases in trailname
+update osm_trls_staging set name = 
+	regexp_replace(name, '(^|\s|-)Bes(-|\s|$)', '\1Bureau of Environmental Services\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(^|\s|-)Bpa(-|\s|$)', '\1Bonneville Power Administration\2', 'g');
+
+
 
 --Various grammar fixes *not* related to abbreviations
 update osm_trails set name = replace(name, ' And ', ' and ');
-update osm_trails set name = replace(name, ' To ', ' to ');
-update osm_trails set name = replace(name, ' With ', ' with ');
+update osm_trails set name = replace(name, ' At ', ' at ');
 update osm_trails set name = replace(name, ' Of ', ' of ');
 update osm_trails set name = replace(name, ' On ', ' on ');
 update osm_trails set name = replace(name, ' The ', ' the ');
-update osm_trails set name = replace(name, ' At ', ' at ');
-update osm_trails set name = replace(name, ' - Connector', '') where (name like '%Connector%Connector%');
+update osm_trails set name = replace(name, ' To ', ' to ');
+update osm_trails set name = replace(name, ' With ', ' with ');
 
---Street prefixes
-update osm_trails set name = replace(name, 'N ', 'North ');
-update osm_trails set name = replace(name, 'Ne ', 'Northeast ');
-update osm_trails set name = replace(name, 'Nw ', 'Northwest ');
-update osm_trails set name = replace(name, 'Se ', 'Southeast ');
-update osm_trails set name = replace(name, 'Sw ', 'Southwest ');
 
---Street sufixes that are comprised of letter combination that *don't* appear in other words
-update osm_trails set name = replace(name, 'Rd', 'Road');
-update osm_trails set name = replace(name, 'Ct', 'Court');
-update osm_trails set name = replace(name, 'Ln', 'Lane');
-update osm_trails set name = replace(name, 'Lp', 'Loop');
-update osm_trails set name = replace(name, 'Blvd', 'Boulevard');
-update osm_trails set name = replace(name, 'Pkwy', 'Parkway');
-update osm_trails set name = replace(name, 'Hwy', 'Highway');
 
---Saint at the beginning of the field, this must be in front the "street" expansion code
-update osm_trails set name = replace(name, 'St ', 'Saint ') where left(name, 2) = 'St';
 
---Street sufixes that are comprised of letter combination that appear in other words
---The first line of code overwrites only abbreviations that appear at the end of a field
---the second line contains a space after the abbreviation so words beginning with these letters won't be modified
-update osm_trails set name = replace(name, 'Ave', 'Avenue') where right(name, 3) = 'Ave';
-update osm_trails set name = replace(name, 'Ave ', 'Avenue ');
-update osm_trails set name = replace(name, 'St', 'Street') where right(name, 2) = 'St';
-update osm_trails set name = replace(name, 'St ', 'Street ');
-update osm_trails set name = replace(name, 'Pl', 'Place') where right(name, 2) = 'Pl';
-update osm_trails set name = replace(name, 'Pl ', 'Place ');
-update osm_trails set name = replace(name, 'Dr', 'Drive') where right(name, 2) = 'Dr';
-update osm_trails set name = replace(name, 'Dr ', 'Drive ');
-update osm_trails set name = replace(name, 'Ter', 'Terrace') where right(name, 3) = 'Ter';
-update osm_trails set name = replace(name, 'Ter ', 'Terrace ');
-update osm_trails set name = replace(name, 'Terr', 'Terrace') where right(name, 4) = 'Terr';
-update osm_trails set name = replace(name, 'Terr ', 'Terrace ');
-update osm_trails set name = replace(name, 'Wy', 'Way') where right(name, 2) = 'Wy';
-update osm_trails set name = replace(name, 'Wy ', 'Way ');
 
---Other abbreviation extensions
-update osm_trails set name = replace(name, 'Ped ', 'Pedestrian ');
-update osm_trails set name = replace(name, 'Tc', 'Transit Center');
-update osm_trails set name = replace(name, 'Assn', 'Association');
-update osm_trails set name = replace(name, 'Hmwrs', 'Homeowners');
-update osm_trails set name = replace(name, 'Mt ', 'Mount ');
-update osm_trails set name = replace(name, 'Jr ', 'Junior ');
-
---Special cases
-update osm_trails set name = replace(name, ' Hoa', ' Homeowners Association');
-update osm_trails set name = replace(name, 'Bpa ', 'Bonneville Power Administration ');
-update osm_trails set name = replace(name, 'Bes ', 'Bureau of Environmental Services ');
 update osm_trails set name = replace(name, 'Fulton Cc', 'Fulton Community Center');
-update osm_trails set name = replace(name, 'HM', 'Howard M.');
+update osm_trails set name = replace(name, 'HM', 'Howard M');
 
 --Unknown abbreviations switched back to caps
 update osm_trails set name = replace(name, 'Tbbv', 'TBBV');
 
 --MAX is most common name, most folks don't know Metropolitan Area eXpress
 update osm_trails set name = replace(name, 'Max ', 'MAX ');
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 --b) Remove abbreviations from "alt_name"
 --Removes extra spaces
