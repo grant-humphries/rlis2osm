@@ -150,67 +150,67 @@ update osm_sts_staging set tunnel = 'yes'
 
 --3) Expand abbreviations that are within the street basename
 update osm_sts_staging set st_name = 
-	regexp_replace(st_name, '(\s)Av[e]?(-|\s|$)', '\1Avenue\2', 'g');
+	regexp_replace(st_name, '(\s)Av[e]?(-|\s|$)', '\1Avenue\2', 'gi');
 update osm_sts_staging set st_name = 
-	regexp_replace(st_name, '(\s)Blvd(-|\s|$)', '\1Boulevard\2 ', 'g');
+	regexp_replace(st_name, '(\s)Blvd(-|\s|$)', '\1Boulevard\2 ', 'gi');
 update osm_sts_staging set st_name = 
-	regexp_replace(st_name, '(\s)Br[g]?(-|\s|$)', '\1Bridge\2 ', 'g');
+	regexp_replace(st_name, '(\s)Br[g]?(-|\s|$)', '\1Bridge\2 ', 'gi');
 update osm_sts_staging set st_name = 
-	regexp_replace(st_name, '(\s)Ct(-|\s|$)', '\1Court\2 ', 'g');
+	regexp_replace(st_name, '(\s)Ct(-|\s|$)', '\1Court\2 ', 'gi');
 update osm_sts_staging set st_name = 
-	regexp_replace(st_name, '(\s)Dr(-|\s|$)', '\1Drive\2 ', 'g');
+	regexp_replace(st_name, '(\s)Dr(-|\s|$)', '\1Drive\2 ', 'gi');
 update osm_sts_staging set st_name = 
-	regexp_replace(st_name, '(^|\s|-)Fwy(-|\s|$)', '\1Freeway\2 ', 'g');
+	regexp_replace(st_name, '(^|\s|-)Fwy(-|\s|$)', '\1Freeway\2 ', 'gi');
 update osm_sts_staging set st_name = 
-	regexp_replace(st_name, '(^|\s|-)Hwy(-|\s|$)', '\1Highway\2 ', 'g');
+	regexp_replace(st_name, '(^|\s|-)Hwy(-|\s|$)', '\1Highway\2 ', 'gi');
 update osm_sts_staging set st_name = 
-	regexp_replace(st_name, '(\s)Pkwy(-|\s|$)', '\1Parkway\2 ', 'g');
+	regexp_replace(st_name, '(\s)Pkwy(-|\s|$)', '\1Parkway\2 ', 'gi');
 update osm_sts_staging set st_name = 
-	regexp_replace(st_name, '(\s)Pl(-|\s|$)', '\1Place\2', 'g');
+	regexp_replace(st_name, '(\s)Pl(-|\s|$)', '\1Place\2', 'gi');
 update osm_sts_staging set st_name = 
-	regexp_replace(st_name, '(\s)Rd(-|\s|$)', '\1Road\2 ', 'g');
+	regexp_replace(st_name, '(\s)Rd(-|\s|$)', '\1Road\2 ', 'gi');
 --St--> Street (will not occur at beginning of a st_name)
 update osm_sts_staging set st_name = 
-	regexp_replace(st_name, '(\s)St(-|\s|$)', '\1Street\2 ', 'g');
+	regexp_replace(st_name, '(\s)St(-|\s|$)', '\1Street\2 ', 'gi');
 
 --Expand other abbreviated parts of street basename
 update osm_sts_staging set st_name = 
-	regexp_replace(st_name, '(^|\s|-)Cc(-|\s|$)', '\1Community College\2', 'g');
+	regexp_replace(st_name, '(^|\s|-)Cc(-|\s|$)', '\1Community College\2', 'gi');
 update osm_sts_staging set st_name = 
-	regexp_replace(st_name, '(^|\s|-)Co(-|\s|$)', '\1County\2', 'g');
+	regexp_replace(st_name, '(^|\s|-)Co(-|\s|$)', '\1County\2', 'gi');
 update osm_sts_staging set st_name = 
-	regexp_replace(st_name, '(\s)Jr(-|\s|$)', '\1Junior\2', 'g');
+	regexp_replace(st_name, '(\s)Jr(-|\s|$)', '\1Junior\2', 'gi');
 --Mt at beginning of name is 'Mount' later in name is 'Mountain'
 update osm_sts_staging set st_name = 
-	regexp_replace(st_name, '(^|-|-\s)Mt(\s)', '\1Mount\2', 'g');
+	regexp_replace(st_name, '(^|-|-\s)Mt(\s)', '\1Mount\2', 'gi');
 update osm_sts_staging set st_name = 
-	regexp_replace(st_name, '(\s)Mt(-|\s|$)', '\1Mountain\2', 'g');
+	regexp_replace(st_name, '(\s)Mt(-|\s|$)', '\1Mountain\2', 'gi');
 update osm_sts_staging set st_name = 
-	regexp_replace(st_name, '(^|\s|-)Nfd(-|\s|$)', '\1National Forest Development Road\2', 'g');
+	regexp_replace(st_name, '(^|\s|-)Nfd(-|\s|$)', '\1National Forest Development Road\2', 'gi');
 update osm_sts_staging set st_name = 
-	regexp_replace(st_name, '(^|\s|-)Pcc(-|\s|$)', '\1Portland Community College\2', 'g');
+	regexp_replace(st_name, '(^|\s|-)Pcc(-|\s|$)', '\1Portland Community College\2', 'gi');
 update osm_sts_staging set st_name = 
-	regexp_replace(st_name, '(\s)Tc(-|\s|$)', '\1Transit Center\2', 'g');
+	regexp_replace(st_name, '(\s)Tc(-|\s|$)', '\1Transit Center\2', 'gi');
 --St--> Saint (will only occur at the beginning of a street name)
 update osm_sts_staging set st_name = 
-	regexp_replace(st_name, '(^|-|-\s)(Mt\s|Mount\s|Old\s)?St[\.]?(\s)', '\1\2Saint\3', 'g');
+	regexp_replace(st_name, '(^|-|-\s)(Mt\s|Mount\s|Old\s)?St[\.]?(\s)', '\1\2Saint\3', 'gi');
 update osm_sts_staging set st_name = 
-	regexp_replace(st_name, '(^|\s|-)Us(-|\s|$)', '\1United States\2', 'g');
+	regexp_replace(st_name, '(^|\s|-)Us(-|\s|$)', '\1United States\2', 'gi');
 
 --special case grammar fixes and name expansions
 update osm_sts_staging set st_name = 
 	--the '~' operator does a posix regular expression comparison between strings
 	case when st_name ~ '.*(^|\s|-)O(brien|day|neal|neil[l]?)(-|\s|$).*'
 	then format_titlecase(regexp_replace(st_name, 
-		'(^|\s|-)O(brien|day|neal|neil[l]?)(-|\s|$)', '\1O''\2\3', 'g'))
+		'(^|\s|-)O(brien|day|neal|neil[l]?)(-|\s|$)', '\1O''\2\3', 'gi'))
 	else st_name end;
 
 update osm_sts_staging set st_name = 
 	case when st_name ~ '.*(^|\s|-)Ft\sOf\s.*' then 
 		case when st_name ~ '.*(^|\s|-)Holladay(-|\s|$).*'
-			then regexp_replace(st_name, 'Ft\sOf\sN', 'Foot of North', 'g')
+			then regexp_replace(st_name, 'Ft\sOf\sN', 'Foot of North', 'gi')
 		when st_name ~ '.*(^|\s|-)(Madison|Marion)(-|\s|$).*'
-			then regexp_replace(st_name, 'Ft\sOf\sSe', 'Foot of Southeast', 'g')
+			then regexp_replace(st_name, 'Ft\sOf\sSe', 'Foot of Southeast', 'gi')
 		else st_name end
 	else st_name end;
 

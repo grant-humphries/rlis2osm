@@ -69,11 +69,11 @@ if not exist %shp_export% mkdir %shp_export%
 
 ::export the converted streets and trails back to shapefile
 ::-k parameter retains case of field names (will be all caps otherwise)
-pgsql2shp -k -h %pg_host% -u %pg_user% -P %pgpassword% ^
-	-f %osm_streets_shp% %db_name% %streets_tbl%
-
 ::pgsql2shp -k -h %pg_host% -u %pg_user% -P %pgpassword% ^
-::	-f %osm_trails_shp% %db_name% %trails_tbl%
+::	-f %osm_streets_shp% %db_name% %streets_tbl%
+
+pgsql2shp -k -h %pg_host% -u %pg_user% -P %pgpassword% ^
+	-f %osm_trails_shp% %db_name% %trails_tbl%
 
 goto:eof
 
@@ -87,8 +87,8 @@ call:export2shp
 ::Convert shapefiles into osm data, the -e parameter indicates the spatial reference
 ::of the input data (output is always wgs84), -f overwrites any existing data, -t is
 ::the transaltion files that modifies attributes
-python %ogr2osm_cmd% -e %or_spn% -f -o %rlis_streets_osm% ^
-	-t %streets_trans% %osm_streets_shp%
+::python %ogr2osm_cmd% -e %or_spn% -f -o %rlis_streets_osm% ^
+::	-t %streets_trans% %osm_streets_shp%
 
 python %ogr2osm_cmd% -e %or_spn% -f -o %rlis_trails_osm% ^
 	-t %trails_trans% %osm_trails_shp%
