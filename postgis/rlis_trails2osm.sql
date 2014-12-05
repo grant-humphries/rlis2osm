@@ -42,24 +42,24 @@ insert into osm_trls_staging (geom, abndnd_hwy, access, alt_name, bicycle, cnstr
 		surface, wheelchair)
 	select rs.geom,
 		--decommissioned trails have their 'highway' values moved here
-		case when status ilike 'Decommissioned' then 'flag'
+		case when status ~* 'Decommissioned' then 'flag'
 			else null end,
 		--access permissions
-		case when status ilike 'Restricted' then 'license'
-			when status ilike 'Restricted_Private' then 'private'
-			when status ilike 'Unknown' then 'unknown'
+		case when status ~* 'Restricted' then 'license'
+			when status ~* 'Restricted_Private' then 'private'
+			when status ~* 'Unknown' then 'unknown'
 			else null end,
 		--alternate name of trail
 		format_titlecase(sharedname),
 		--bicycle permissions
-		case when roadbike ilike 'No' then 'no'
-			when (roadbike ilike 'Yes' and width not in ('1-5', '5 ft')
+		case when roadbike ~* 'No' then 'no'
+			when (roadbike ~* 'Yes' and width not in ('1-5', '5 ft')
 				and trlsurface in ('Hard Surface', 'Decking') 
-				or onstrbike ilike 'Yes' then 'designated'
-			when roadbike ilike 'Yes' then 'yes'
+				or onstrbike ~* 'Yes' then 'designated'
+			when roadbike ~* 'Yes' then 'yes'
 			else null end,
 		--trails under construction will have their 'highway' values moved here
-		case when status ilike 'Under construction' then 'flag'
+		case when status ~* 'Under construction' then 'flag'
 			else null end,
 		--estimated trail width, rlis widths are in feet, osm in meters, to get the
 		--meters value I took the average of the interval and rounded to the nearest
@@ -71,61 +71,61 @@ insert into osm_trls_staging (geom, abndnd_hwy, access, alt_name, bicycle, cnstr
 			when width = '15+' then '5.0'
 			else null end,
 		--trail fee information
-		case when status ilike 'Open_Fee' then 'yes'
+		case when status ~* 'Open_Fee' then 'yes'
 			else null end,
 		--pedestrian permissions
-		case when hike ilike 'No' then 'no'
-			when hike ilike 'Yes' then 'designated' 
+		case when hike ~* 'No' then 'no'
+			when hike ~* 'Yes' then 'designated' 
 			else null end,
 		--trail type
-		case when trlsurface ilike 'Stairs' then 'steps' 
-			when onstrbike ilike 'Yes' then 'road'
+		case when trlsurface ~* 'Stairs' then 'steps' 
+			when onstrbike ~* 'Yes' then 'road'
 			--any trail with two or more designated uses is a path
-			when (hike ilike 'Yes' and roadbike ilike 'Yes' 
+			when (hike ~* 'Yes' and roadbike ~* 'Yes' 
 					and trlsurface in ('Hard Surface', 'Decking') 
 					and width not in ('1-5', '5 ft'))
-				or (hike ilike 'Yes' and mtnbike ilike 'Yes')
-				or (hike ilike 'Yes' and equestrian ilike 'Yes')
-				or (roadbike ilike 'Yes' and equestrian ilike 'Yes')
-				or (mtnbike ilike 'Yes' and equestrian ilike 'Yes') then 'path'
-			when roadbike ilike 'Yes' 
+				or (hike ~* 'Yes' and mtnbike ~* 'Yes')
+				or (hike ~* 'Yes' and equestrian ~* 'Yes')
+				or (roadbike ~* 'Yes' and equestrian ~* 'Yes')
+				or (mtnbike ~* 'Yes' and equestrian ~* 'Yes') then 'path'
+			when roadbike ~* 'Yes' 
 				and trlsurface in ('Hard Surface', 'Decking')
 				and width not in ('1-5', '5 ft') then 'cycleway'
-			when mtnbike ilike 'Yes' then 'path'
-			when equestrian ilike 'Yes' then 'bridleway'
+			when mtnbike ~* 'Yes' then 'path'
+			when equestrian ~* 'Yes' then 'bridleway'
 			else 'footway' end,
 		--equestrian permissions
-		case when equestrian ilike 'No' then 'no'
-			when equestrian ilike 'Yes' then 'designated'
+		case when equestrian ~* 'No' then 'no'
+			when equestrian ~* 'Yes' then 'designated'
 			else null end,
 		--mountain bike permissions
-		case when mtnbike ilike 'No' then 'no'
-			when mtnbike ilike 'Yes' then 'designated'
+		case when mtnbike ~* 'No' then 'no'
+			when mtnbike ~* 'Yes' then 'designated'
 			else null end,
 		--primary trail name
 		format_titlecase(trailname),
 		--managing agency
-		case when agencyname ilike 'Unknown' then null
+		case when agencyname ~* 'Unknown' then null
 			else format_titlecase(agencyname) end,
 		--proposed trails have their 'highway' values moved here
-		case when status ilike 'Planned' then 'flag'
+		case when status ~* 'Planned' then 'flag'
 			else null end,
 		--rlis system name, these may eventually be used to create relations, but for now
 		--don't include this attribute if it is identical one of the trails other names
-		case when systemname ilike trailname 
-			or systemname ilike sharedname then null
+		case when systemname ~* trailname 
+			or systemname ~* sharedname then null
 			else format_titlecase(systemname) end,
 		--trail surface
-		case when trlsurface ilike 'Chunk Wood' then 'woodchips'
-			when trlsurface ilike 'Decking' then 'wood'
-			when trlsurface ilike 'Hard Surface' then 'paved'
-			when trlsurface ilike 'Imported Material' then 'compacted'
-			when trlsurface ilike 'Native Material' then 'ground'
-			when trlsurface ilike 'Snow' then 'snow'
+		case when trlsurface ~* 'Chunk Wood' then 'woodchips'
+			when trlsurface ~* 'Decking' then 'wood'
+			when trlsurface ~* 'Hard Surface' then 'paved'
+			when trlsurface ~* 'Imported Material' then 'compacted'
+			when trlsurface ~* 'Native Material' then 'ground'
+			when trlsurface ~* 'Snow' then 'snow'
 			else null end,
 		--accessibility status
-		case when accessible ilike 'Accessible' then 'yes'
-			when accessible ilike 'Not Accessible' then 'no'
+		case when accessible ~* 'Accessible' then 'yes'
+			when accessible ~* 'Not Accessible' then 'no'
 			else null end
 	from rlis_trails
 	where (status != 'Conceptual' or status is null)
