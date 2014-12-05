@@ -134,7 +134,11 @@ insert into osm_trls_staging (geom, abndnd_hwy, access, alt_name, bicycle, cnstr
 
 --3) Clean-up issues that couldn't be handled on the initial insert
 
--use indexes here???
+--add index to speed matching below
+drop index if exists highway_ix cascade;
+create index highway_ix on osm_trls_staging using BTREE (highway);
+
+vacuum analyze osm_trls_staging;
 
 --highway type 'footway' implies foot permissions, it's redundant to have this
 --information in the 'foot' tag as well, same goes for 'cycleway' and 'bridleway'
@@ -146,6 +150,20 @@ update osm_trls_staging set bicycle to null
 
 update osm_trls_staging set horse to null
 	where highway = 'bridleway';
+
+--drop highway index as that field is about to be modified and the index is no longer
+--going to be utilized
+drop index if exists highway_ix cascade;
+
+--add index to speed matching
+drop index if exists abndnd_hwy_ix cascade;
+create index abndnd_hwy_ix on osm_trls_staging using BTREE (abndnd_hwy);
+
+drop index if exists cnstrctn_ix cascade;
+create index cnstrctn_ix on osm_trls_staging using BTREE (cnstrctn);
+
+drop index if exists proposed_ix cascade;
+create index proposed_ix on osm_trls_staging using BTREE (proposed);
 
 --Move highway values into appropriate column for under construction, proposed 
 --and abandoned features
@@ -162,13 +180,12 @@ update osm_trls_staging
 	where proposed is not null;
 
 
-
-
-
---4) Remove Abbreviations and unwanted characters and descriptors from name, systemname, 
+--4) Expand any abbreviations and properly format strings in the name, r_sysname, 
 --alt_name, and operator fields
 
---remove any periods in trailname 
+--a) 'name' (aka trailname)
+
+--remove any periods (.) in trailname 
 update osm_trails set name = replace(name, '.', '');
 
 --expand street prefixes in trailname
@@ -206,9 +223,9 @@ update osm_trls_staging set name =
 update osm_trls_staging set name = 
 	regexp_replace(name, '(\s)Cir(-|\s|$)', '\1Circle\2', 'g');
 update osm_trls_staging set name = 
-	regexp_replace(name, '(\s)Ct(-|\s|$)', '\1Court\2', 'g');
+	regexp_replace(name, '(\s|/)Ct(-|\s|$)', '\1Court\2', 'g');
 update osm_trls_staging set name = 
-	regexp_replace(name, '(\s)Dr(-|\s|$)', '\1Drive\2', 'g');
+	regexp_replace(name, '(\s)Dr(-|\s|$|/)', '\1Drive\2', 'g');
 update osm_trls_staging set name = 
 	regexp_replace(name, '(^|\s|-)Hwy(-|\s|$)', '\1Highway\2', 'g');
 update osm_trls_staging set name = 
@@ -234,6 +251,8 @@ update osm_trls_staging set name =
 update osm_trls_staging set name = 
 	regexp_replace(name, '(\s)Assn(-|\s|$)', '\1Association\2', 'g');
 update osm_trls_staging set name = 
+	regexp_replace(name, '(^|\s|-)Bpa(-|\s|$)', '\1Bonneville Power Administration\2', 'g');
+update osm_trls_staging set name = 
 	regexp_replace(name, '(\s)Es(-|\s|$)', '\1Elementary School\2', 'g');
 update osm_trls_staging set name = 
 	regexp_replace(name, '(^|\s|-)Hmwrs(-|\s|$)', '\1Homeowners\2', 'g');
@@ -243,6 +262,8 @@ update osm_trls_staging set name =
 	regexp_replace(name, '(\s)Jr(-|\s|$)', '\1Junior\2', 'g');
 update osm_trls_staging set name = 
 	regexp_replace(name, '(\s)Llc(-|\s|$)', '\1Limited Liability Company\2', 'g');
+update osm_trls_staging set name = 
+	regexp_replace(name, '(^|\s|-)Max(-|\s|$)', '\1Metropolitan Area Express\2', 'g');
 update osm_trls_staging set name = 
 	regexp_replace(name, '(\s)Ms(-|\s|$)', '\1Middle School\2', 'g');
 update osm_trls_staging set name = 
@@ -258,147 +279,184 @@ update osm_trls_staging set name =
 update osm_trls_staging set name = 
 	regexp_replace(name, '(^|\s|-)Va(-|\s|$)', '\1Veteran Affairs\2', 'g');
 
---expand special cases in trailname
-update osm_trls_staging set name = 
-	regexp_replace(name, '(^|\s|-)Bes(-|\s|$)', '\1Bureau of Environmental Services\2', 'g');
-update osm_trls_staging set name = 
-	regexp_replace(name, '(^|\s|-)Bpa(-|\s|$)', '\1Bonneville Power Administration\2', 'g');
+--convert transitional words in trail names to lowercase
+update osm_trls_staging set name = regexp_replace(name, '(\s)And(\s)', '\1and\2', 'g');
+update osm_trls_staging set name = regexp_replace(name, '(\s)At(\s)', '\1at\2', 'g');
+update osm_trls_staging set name = regexp_replace(name, '(\s)Of(\s)', '\1of\2', 'g');
+update osm_trls_staging set name = regexp_replace(name, '(\s)On(\s)', '\1on\2', 'g');
+update osm_trls_staging set name = regexp_replace(name, '(\s)The(\s)', '\1the\2', 'g');
+update osm_trls_staging set name = regexp_replace(name, '(\s)To(\s)', '\1to\2', 'g');
+update osm_trls_staging set name = regexp_replace(name, '(\s)With(\s)', '\1with\2', 'g');
+
+--special cases, since these are not common an index is being added to 'name' field
+--and matches are being made on the full value to increase speed
+drop index if exists name_ix cascade;
+create index name_ix on osm_trls_staging using BTREE (name);
+
+update osm_trls_staging set name = 'Bureau of Environmental Services Water Quality Control Lab Trail'
+	where name = 'BES Water Quality Control Lab Trail';
+update osm_trls_staging set name = 'Fulton Community Center Driveway'
+	where name = 'Fulton CC Driveway';
+update osm_trls_staging set name = 'Howard M Terpenning Recreation Complex Trails - Connector'
+	where name = 'HM Terpenning Recreation Complex Trails - Connector';
+update osm_trls_staging set name = 'Mt Hood Community College Driveway - Kane Dr Connector'
+	where name = 'Mt Hood CC Driveway - Kane Dr Connector';
+
+--unknown abbreviation, switch back to caps
+update osm_trails set name = 'TBBV Path'
+	where name = 'Tbbv Path';
 
 
+--b) 'alt_name'
 
---Various grammar fixes *not* related to abbreviations
-update osm_trails set name = replace(name, ' And ', ' and ');
-update osm_trails set name = replace(name, ' At ', ' at ');
-update osm_trails set name = replace(name, ' Of ', ' of ');
-update osm_trails set name = replace(name, ' On ', ' on ');
-update osm_trails set name = replace(name, ' The ', ' the ');
-update osm_trails set name = replace(name, ' To ', ' to ');
-update osm_trails set name = replace(name, ' With ', ' with ');
+--remove periods (.)
+update osm_trls_staging set alt_name = replace(alt_name, '.', '');
 
+--expand abbreviations
+update osm_trls_staging set alt_name = 
+	regexp_replace(alt_name, '(\s)Ave(-|\s|$)', '\1Avenue\2');
+update osm_trls_staging set alt_name = 
+	regexp_replace(alt_name, '(\s)Ln(-|\s|$)', '\1Lane\2');
+update osm_trls_staging set alt_name = 
+	regexp_replace(alt_name, '(^|\s|-)Max(-|\s|$)', '\1Metropolitan Area Express\2', 'g');
+update osm_trls_staging set alt_name = 
+	regexp_replace(alt_name, '(^|\s|-)Mt(-|\s|$)', '\1Mount\2', 'g');	
+update osm_trls_staging set alt_name = 
+	regexp_replace(alt_name, '(^|\s|-)Sw(\s)', '\1Southwest\2', 'g');
+update osm_trls_staging set alt_name = 
+	regexp_replace(alt_name, '(^|\s|-)Wes(-|\s|$)', '\1Westside Express Service\2', 'g');
+update osm_trls_staging set alt_name = 
+	regexp_replace(alt_name, '(^|\s|-)Thprd(-|\s|$)', '\1Tualatin Hills Park & Recreation District\2', 'g');
 
+--grammar fixes
+update osm_trls_staging set alt_name = 
+	regexp_replace(alt_name, '(\s)And(\s)', '\1and\2', 'g');
+update osm_trls_staging set alt_name = 
+	regexp_replace(alt_name, '(\s)The(\s)', '\1the\2', 'g');
+update osm_trls_staging set alt_name = 
+	regexp_replace(alt_name, '(\s)To(\s)', '\1to\2', 'g');
 
-
-
-update osm_trails set name = replace(name, 'Fulton Cc', 'Fulton Community Center');
-update osm_trails set name = replace(name, 'HM', 'Howard M');
-
---Unknown abbreviations switched back to caps
-update osm_trails set name = replace(name, 'Tbbv', 'TBBV');
-
---MAX is most common name, most folks don't know Metropolitan Area eXpress
-update osm_trails set name = replace(name, 'Max ', 'MAX ');
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
---b) Remove abbreviations from "alt_name"
---Removes extra spaces
-update osm_trails set alt_name = replace(alt_name, '  ', ' ');
-
+--special cases, use index and match full name
 drop index if exists alt_name_ix cascade;
-create index alt_name_ix ON osm_trails using BTREE (alt_name);
+create index alt_name_ix on osm_trls_staging using BTREE (alt_name);
+
+update osm_trls_staging set alt_name = 'Tualatin Valley Water District Water Treatment Plant Trails'
+	where alt_name = 'TVWD Water Treatment Plant Trails';
+
+
+--c) 'r_sysname' (aka systemname)
+
+--remove periods (.)
+update osm_trls_staging set r_sysname = replace(r_sysname, '.', '');
+
+--expand street prefixes
+update osm_trls_staging set r_sysname = 
+	regexp_replace(r_sysname, '(^|-\s|-)N(\s)', '\1North\2');
+update osm_trls_staging set r_sysname = 
+	regexp_replace(r_sysname, '(^|\s|-)Ne(\s)', '\1Northeast\2');
+update osm_trls_staging set r_sysname = 
+	regexp_replace(r_sysname, '(^|\s|-)Nw(\s)', '\1Northwest\2');
+update osm_trls_staging set r_sysname = 
+	regexp_replace(r_sysname, '(^|\s|-)Se(\s)', '\1Southeast\2');
+update osm_trls_staging set r_sysname = 
+	regexp_replace(r_sysname, '(^|\s|-)Sw(\s)', '\1Southwest\2');
+
+--expand street types
+update osm_trls_staging set r_sysname = 
+	regexp_replace(r_sysname, '(\s)Ave(-|\s|$)', '\1Avenue\2');
+update osm_trls_staging set r_sysname = 
+	regexp_replace(r_sysname, '(\s)Blvd(-|\s|$)', '\1Boulevard\2');
+update osm_trls_staging set r_sysname = 
+	regexp_replace(r_sysname, '(\s)Ct(-|\s|$)', '\1Court\2');
+update osm_trls_staging set r_sysname = 
+	regexp_replace(r_sysname, '(\s)Dr(-|\s|$)', '\1Drive\2');
+update osm_trls_staging set r_sysname = 
+	regexp_replace(r_sysname, '(^|\s|-)Hwy(-|\s|$)', '\1Highway\2');
+update osm_trls_staging set r_sysname = 
+	regexp_replace(r_sysname, '(\s)Ln(-|\s|$)', '\1Lane\2');
+update osm_trls_staging set r_sysname = 
+	regexp_replace(r_sysname, '(\s)Pl(-|\s|$)', '\1Place\2');
+update osm_trls_staging set r_sysname = 
+	regexp_replace(r_sysname, '(\s)Rd(-|\s|$)', '\1Road\2');
+update osm_trls_staging set r_sysname = 
+	regexp_replace(r_sysname, '(\s)St(-|\s|$)', '\1Street\2', 'g');
+
+--expand other abbreviations
+update osm_trls_staging set r_sysname = 
+	regexp_replace(r_sysname, '(\s)Assn(-|\s|$)', '\1Association\2');
+update osm_trls_staging set r_sysname = 
+	regexp_replace(r_sysname, '(\s)Es[l]?(-|\s|$)', '\1Elementary School\2');
+update osm_trls_staging set r_sysname = 
+	regexp_replace(r_sysname, '(\s)Hoa(-|\s|$)', '\1Homeowners Association\2');
+update osm_trls_staging set r_sysname = 
+	regexp_replace(r_sysname, '(\s)Hmwrs(\s)', '\1Homeowners\2');
+update osm_trls_staging set r_sysname = 
+	regexp_replace(r_sysname, '(^|\s|-)Max(-|\s|$)', '\1Metropolitan Area Express\2', 'g');
+update osm_trls_staging set r_sysname = 
+	regexp_replace(r_sysname, '(\s)Ms(-|\s|$)', '\1Middle School\2');
+update osm_trls_staging set r_sysname = 
+	regexp_replace(r_sysname, '(^|\s|-)Mt(\s)', '\1Mount\2');
+update osm_trls_staging set r_sysname = 
+	regexp_replace(r_sysname, '(^|\s|-)Pcc(-|\s|$)', '\1Portland Community College\2');
+update osm_trls_staging set r_sysname = 
+	regexp_replace(r_sysname, '(^|\s|-)Psu(-|\s|$)', '\1Portland State University\2');
+update osm_trls_staging set r_sysname = 
+	regexp_replace(r_sysname, '(\s)Rr(-|\s|$)', '\1Railroad\2');
+update osm_trls_staging set r_sysname = 
+	regexp_replace(r_sysname, '(^|-\s|-)St(\s)', '\1Saint\2', 'g');
+update osm_trls_staging set r_sysname = 
+	regexp_replace(r_sysname, '(^|\s|-)Thprd(-|\s|$)', '\1Tualatin Hills Park & Recreation District\2', 'g');
 
 --grammar fixes
-update osm_trails set alt_name = replace(alt_name, ' To ', ' to ');
-update osm_trails set alt_name = replace(alt_name, ' The ', ' the ');
-update osm_trails set alt_name = replace(alt_name, ' And ', ' and ');
+update osm_trls_staging set r_sysname = regexp_replace(r_sysname, '(\s)At(\s)', '\1at\2');
+update osm_trls_staging set r_sysname = regexp_replace(r_sysname, '(\s)And(\s)', '\1and\2');
+update osm_trls_staging set r_sysname = regexp_replace(r_sysname, '(\s)Of(\s)', '\1of\2');
+update osm_trls_staging set r_sysname = regexp_replace(r_sysname, '(\s)On(\s)', '\1on\2');
+update osm_trls_staging set r_sysname = regexp_replace(r_sysname, '(\s)The(\s)', '\1the\2');
+update osm_trls_staging set r_sysname = regexp_replace(r_sysname, '(\s)To(\s)', '\1to\2');
+update osm_trls_staging set r_sysname = regexp_replace(r_sysname, '(\s)With(\s)', '\1with\2');
 
---abbreviation expansions
-update osm_trails set alt_name = replace(alt_name, 'Mt ', 'Mount ');
-update osm_trails set alt_name = replace(alt_name, 'SW ', 'Southwest ');
-update osm_trails set alt_name = replace(alt_name, 'Ave ', 'Avenue ');
+--special cases, use index and match full name
+drop index if exists r_sysname_ix cascade;
+create index r_sysname_ix on osm_trls_staging using BTREE (r_sysname);
 
+update osm_trls_staging set r_sysname = 'Archibald M Kennedy Park Trails'
+	where r_sysname = 'AM Kennedy Park Trails';
+update osm_trls_staging set r_sysname = 'Howard M Terpenning Recreation Complex Trails'
+	where r_sysname = 'HM Terpenning Recreation Complex Trails';
+update osm_trls_staging set r_sysname = 'Latter Day Saints'' Trails'
+	where r_sysname = 'LDS Trails';
+update osm_trls_staging set r_sysname = 'Orenco Gardens Limited Liability Company Park Trails'
+	where r_sysname = 'Orenco Gardens LLC Park Trails';
+update osm_trls_staging set r_sysname = 'Pacific Grove #4 Homeowners Association Trails'
+	where r_sysname = 'Pacific Grove No. 4 Homeowners Association Trails';
+update osm_trls_staging set r_sysname = 'Renaissance at Peterkort Woods Homeowners Trails'
+	where r_sysname = 'Renaissance at PKW Homeowners Trails';
+update osm_trls_staging set r_sysname = 'Proposed Regional Southwest Corridor Connector'
+	where r_sysname = 'Proposed Regional SWC Connector';
+update osm_trls_staging set r_sysname = 'Tualatin Valley Water District Water Treatment Plant Trails'
+	where r_sysname = 'TVWD Water Treatment Plant Trails';
+update osm_trls_staging set r_sysname = 'Ulin J Hamby Park Trails'
+	where r_sysname = 'UJ Hamby Park Trails';
+update osm_trls_staging set r_sysname = 'Washington State University Campus Trails'
+	where r_sysname = 'WSU Campus Trails';
 
---c) Remove abbreviations from "systemname"
---Convert to Camel Case
-update osm_trails set systemname = format_titlecase(systemname);
+--typo fixes
+update osm_trls_staging set r_sysname = 'Chieftain Dakota Greenway Trails'
+	where r_sysname = 'Chiefain Dakota Greenway Trails';
+update osm_trls_staging set r_sysname = 'Tanasbourne Villas Trail'
+	where r_sysname = 'Tanasbource Villas Trail';
+update osm_trls_staging set r_sysname = 'Southwest Portland Willamette Greenway Trail'
+	where r_sysname = 'Southwest Portland Wilamette Greenway Trail';
 
-drop index if exists systemname_ix cascade;
-create index systemname_ix ON osm_trails using BTREE (systemname);
-
---Removes periods and extra spaces
-update osm_trails set systemname = replace(systemname, '.', '');
-update osm_trails set systemname = replace(systemname, '  ', ' ');
-
---grammar fixes
-update osm_trails set systemname = replace(systemname, ' Of ', ' of ');
-update osm_trails set systemname = replace(systemname, ' To ', ' to ');
-update osm_trails set systemname = replace(systemname, ' On ', ' on ');
-update osm_trails set systemname = replace(systemname, ' The ', ' the ');
-update osm_trails set systemname = replace(systemname, ' At ', ' at ');
-update osm_trails set systemname = replace(systemname, ' And ', ' and ');
-
---Street prefixes
-update osm_trails set systemname = replace(systemname, 'Nw ', 'Northwest ');
-update osm_trails set systemname = replace(systemname, 'Se ', 'Southeast ');
-update osm_trails set systemname = replace(systemname, 'Sw ', 'Southwest ');
-
---Street sufixes that are comprised of letter combination that *don't* appear in other words
-update osm_trails set systemname = replace(systemname, 'Rd', 'Road');
-update osm_trails set systemname = replace(systemname, 'Hwy', 'Highway');
-
---Street sufixes that are comprised of letter combination that appear in other words
-update osm_trails set systemname = replace(systemname, 'Ave', 'Avenue') where right(systemname, 3) = 'Ave';
-update osm_trails set systemname = replace(systemname, 'Ave ', 'Avenue ');
-
---Other abbreviation extensions
-update osm_trails set systemname = replace(systemname, 'Mt ', 'Mount ');
-update osm_trails set systemname = replace(systemname, 'St ', 'Saint ');
-update osm_trails set systemname = replace(systemname, 'Ped ', 'Pedestrian ');
-update osm_trails set systemname = replace(systemname, 'Assn', 'Association');
-update osm_trails set systemname = replace(systemname, 'Hmwrs', 'Homeowners');
-update osm_trails set systemname = replace(systemname, ' Hoa', ' Homeowners Association');
-update osm_trails set systemname = replace(systemname, ' Ms', ' Middle School');
-update osm_trails set systemname = replace(systemname, 'Es ', 'Elementary School ');
-update osm_trails set systemname = replace(systemname, 'Lds', 'Latter Day Saints');
-update osm_trails set systemname = replace(systemname, ' No ', ' #');
 update osm_trails set systemname = replace(systemname, 'Inc ', 'Incorporated ');
-
---Special cases
-update osm_trails set systemname = replace(systemname, 'AM', 'Archibald M.');
-update osm_trails set systemname = replace(systemname, 'HM', 'Howard M.');
-update osm_trails set systemname = replace(systemname, 'Uj Hamby', 'Ulin J. Hamby');
-update osm_trails set systemname = replace(systemname, 'Pkw', 'Peterkort Woods');
-update osm_trails set systemname = replace(systemname, 'Thprd', 'Tualatin Hills Park & Recreation District');
-update osm_trails set systemname = replace(systemname, 'Tvwd', 'Tualatin Valley Water District');
-update osm_trails set systemname = replace(systemname, 'Pcc', 'Portland Community College');
-update osm_trails set systemname = replace(systemname, 'Psu', 'Portland State University');
-update osm_trails set systemname = replace(systemname, 'Wsu', 'Washington State University');
-
---Typo fixes
-update osm_trails set systemname = replace(systemname, 'Ccccccc', '');
-update osm_trails set systemname = replace(systemname, 'Chiefain', 'Chieftain');
-update osm_trails set systemname = replace(systemname, 'Esl ', 'Elementary School ');
-update osm_trails set systemname = replace(systemname, 'Tanasbource', 'Tanasbourne');
-update osm_trails set systemname = replace(systemname, 'Wilamette', 'Willamette');
-update osm_trails set systemname = replace(systemname, 'Southwest Pedestrian Walkway', 'Southwest Pedestrian Walkways');
-
-
 --Unknown abbreviations switched back to caps
 update osm_trails set systemname = replace(systemname, 'Pbh', 'PBH');
 
---MAX is most common name, most folks don't know Metropolitan Area eXpress
-update osm_trails set systemname = replace(systemname, 'Max ', 'MAX ');
 
 
 
---d) Remove abbreviations from "operator"
+--d) 'operator'
 
 --A few minor fixes, everything is already expanded, cameled, etc. for the most part
 update osm_trails set operator = replace(operator, 'US', 'United States');

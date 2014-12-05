@@ -224,7 +224,7 @@ vacuum analyze osm_sts_staging;
 
 update osm_sts_staging set st_name = 'Bonneville Power Administration'
 	where st_name = 'Bpa';
-update osm_sts_staging set st_name = 'JQ Adams'
+update osm_sts_staging set st_name = 'John Quincy Adams'
 	where st_name = 'Jq Adams';
 update osm_sts_staging set st_name = 'Sunnyside Hospital-Mount Scott Medical Transit Center'
 	where st_name = 'Sunnyside Hosp-Mount Scott Med Transit Center';
