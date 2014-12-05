@@ -3,9 +3,8 @@
 ---------------------------------
 
 --Convert a PostGreSQL String to Title Case 
---Function from "Jonathan Brinkman" <JB(at)BlackSkyTech(dot)com> 
+--Derived from function by "Jonathan Brinkman" <JB(at)BlackSkyTech(dot)com> 
 --http://archives.postgresql.org/pgsql-sql/2010-09/msg00088.php
---modified to suit this project by Grant Humphries
 
 create or replace function "format_titlecase" ("v_inputstring" text)
 returns text as

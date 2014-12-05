@@ -438,7 +438,7 @@ update osm_trls_staging set r_sysname =
 update osm_trls_staging set r_sysname = 
 	regexp_replace(r_sysname, '(\s)At(\s)', '\1at\2', 'gi');
 update osm_trls_staging set r_sysname = 
-	--second 'd' is for type fix
+	--second 'd' is for typo fix
 	regexp_replace(r_sysname, '(\s)And[d]?(\s)', '\1and\2', 'gi');
 update osm_trls_staging set r_sysname = 
 	regexp_replace(r_sysname, '(\s)Of(\s)', '\1of\2', 'gi');
