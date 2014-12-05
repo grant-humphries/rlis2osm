@@ -302,6 +302,8 @@ vacuum analyze osm_trls_staging;
 
 update osm_trls_staging set name = 'Bureau of Environmental Services Water Quality Control Lab Trail'
 	where name = 'Bes Water Quality Control Lab Trail';
+update osm_trls_staging set name = 'Fanno Creek Trail at Oregon Electric Right of Way'
+	where name = 'Fanno Creek Trail at Oregon Electric ROW';
 update osm_trls_staging set name = 'Fulton Community Center Driveway'
 	where name = 'Fulton Cc Driveway';
 update osm_trls_staging set name = 'Howard M Terpenning Recreation Complex Trails - Connector'
@@ -309,11 +311,21 @@ update osm_trls_staging set name = 'Howard M Terpenning Recreation Complex Trail
 update osm_trls_staging set name = 'Shorenstein Properties Limited Liability Company Connector'
 	where name = 'Shorenstein Properties Llc Connector';
 update osm_trls_staging set name = 'Mt Hood Community College Driveway - Kane Dr Connector'
-	where name = 'Mt Hood Cc Driveway - Kane Dr Connector';
+	where name = 'Mount Hood Cc Driveway - Kane Drive Connector';
 
 --unknown abbreviation, switch back to caps
+update osm_trls_staging set name = 'CAT Road (Retired)'
+	where name = 'Cat Road (Retired)';
+update osm_trls_staging set name = 'FAOF Canberra Trail'
+	where name = 'Faof Canberra Trail';
 update osm_trls_staging set name = 'TBBV Path'
 	where name = 'Tbbv Path';
+
+--typo fixes
+update osm_trls_staging set name = 'Andrea Street - Moccasin Connector'
+	where name = 'Andrea Street - Mo Ccasin Connector';
+update osm_trls_staging set name = 'West Union Road - 151st Place Connector'
+	where name = 'West Unioin Road - 151st Place Connector';
 
 
 --b) 'alt_name' (aka sharedname)
@@ -418,11 +430,16 @@ update osm_trls_staging set r_sysname =
 update osm_trls_staging set r_sysname = 
 	regexp_replace(r_sysname, '(^|\s|-)Thprd(-|\s|$)', '\1Tualatin Hills Park & Recreation District\2', 'gi');
 
+--special case expansions
+update osm_trls_staging set r_sysname = 
+	regexp_replace(r_sysname, '(^|\s|-)HM(\s)', '\1Howard M\2', 'gi');
+
 --grammar fixes
 update osm_trls_staging set r_sysname = 
 	regexp_replace(r_sysname, '(\s)At(\s)', '\1at\2', 'gi');
 update osm_trls_staging set r_sysname = 
-	regexp_replace(r_sysname, '(\s)And(\s)', '\1and\2', 'gi');
+	--second 'd' is for type fix
+	regexp_replace(r_sysname, '(\s)And[d]?(\s)', '\1and\2', 'gi');
 update osm_trls_staging set r_sysname = 
 	regexp_replace(r_sysname, '(\s)Of(\s)', '\1of\2', 'gi');
 update osm_trls_staging set r_sysname = 
@@ -442,9 +459,7 @@ vacuum analyze osm_trls_staging;
 
 update osm_trls_staging set r_sysname = 'Archibald M Kennedy Park Trails'
 	where r_sysname = 'AM Kennedy Park Trails';
-update osm_trls_staging set r_sysname = 'Howard M Terpenning Recreation Complex Trails'
-	where r_sysname = 'HM Terpenning Recreation Complex Trails';
-update osm_trls_staging set r_sysname = 'Latter Day Saints'' Trails'
+update osm_trls_staging set r_sysname = 'Latter Day Saints Trails'
 	where r_sysname = 'Lds Trails';
 update osm_trls_staging set r_sysname = 'Orenco Gardens Limited Liability Company Park Trails'
 	where r_sysname = 'Orenco Gardens Llc Park Trails';

@@ -23,11 +23,11 @@ set or_spn=2913
 set rlis_streets_shp=%rlis_workspace%\STREETS\streets.shp
 set rlis_trails_shp=%rlis_workspace%\TRANSIT\trails.shp
 
-::call:createPostgisDb
-::call:loadRlisShapefiles
+call:createPostgisDb
+call:loadRlisShapefiles
 call:executeAttributeConversion
-::call:createExportFolder
-::call:export2osm
+call:createExportFolder
+call:export2osm
 
 goto:eof
 
@@ -70,7 +70,7 @@ psql -q -h %pg_host% -d %db_name% -U %pg_user% -f %tcase_script%
 
 echo "Street attribute conversion beginning, start time is: %time:~0,8%"
 set streets_script=%code_workspace%\postgis\rlis_streets2osm.sql
-::psql -q -h %pg_host% -d %db_name% -U %pg_user% -f %streets_script%
+psql -q -h %pg_host% -d %db_name% -U %pg_user% -f %streets_script%
 
 echo "Trail attribute conversion beginning, start time is: %time:~0,8%"
 set trails_script=%code_workspace%\postgis\rlis_trails2osm.sql
