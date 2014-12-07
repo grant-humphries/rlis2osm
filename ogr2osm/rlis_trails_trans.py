@@ -6,8 +6,10 @@
 def filterTags(tags):
 	"""This function reads and potentially modifies key-value pairs, if a key has no value,
 	which is common in may geoformats, it will be dropped"""
+	
 	if tags is None:
 		return
+	
 	newtags = {}
 	for (key, value) in tags.items():
 		if value != '':
