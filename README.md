@@ -30,4 +30,4 @@ Get the latest RLIS data here:
 - [RLIS Trails]()
 
 #### Special Thanks
-Thanks to Mele Sax-Barnett (@pdxmele) for initiating the automation  of this process (it took us weeks to do this years ago when we did this manually as interns and now takes less than 30 minutes!) and writing the first draft of rlis_streets2osm.sql
+Thanks to Mele Sax-Barnett (@pdxmele) for initiating the automation  of this process (it took us weeks to do this conversion years ago when first approaching it manually as interns and now takes less than 30 minutes!) and for writing the first draft of rlis_streets2osm.sql
