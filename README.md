@@ -33,4 +33,4 @@ From there the file paths for the street and trail data in the shell scripts nee
 
 
 #### Special Thanks
-Thanks to Mele Sax-Barnett (@pdxmele) for initiating the automation  of this process (it took us weeks to do this conversion years ago when first approaching it manually as interns and now takes less than 30 minutes!) and for writing the first draft of rlis_streets2osm.sql
+Thanks to Mele Sax-Barnett (@pdxmele) for initiating the automation  of this process (it took us weeks to do this conversion years ago as interns when approaching it manually and now takes less than 30 minutes!) and for writing the first draft of rlis_streets2osm.sql
