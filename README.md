@@ -1,9 +1,12 @@
 
 ## Purpose
-The majority of Oregon Metro's 'Regional Land Information System' ([RLIS](http://www.oregonmetro.gov/rlis-live)) dataset, including the street and trail centerline data, is now under the same license as OpenStreetMap ([OSM](osm.org)), the Open Database License ([ODbL](http://opendatacommons.org/licenses/odbl/)).  This means deriving edits to OSM from RLIS is fully compliant with OpenStreetMap's contribution terms.  However, 
+The majority of Oregon Metro's 'Regional Land Information System' ([RLIS](http://www.oregonmetro.gov/rlis-live)) dataset, including the street and trail centerline data, is now under the same license as OpenStreetMap ([OSM](osm.org)), the Open Database License ([ODbL](http://opendatacommons.org/licenses/odbl/)).  This means deriving edits to OSM from RLIS is fully compliant with OpenStreetMap's contribution terms.  
+
+However, RLIS and OSM use a vastly different methodologies to classify attributes and RLIS is released in shapefile format which is not ideal for comparison to existing OSM data in an editing environment.  The code in this repo converts the attributes, segmentation (output segments that are contiguous are only split where attributes differ, not at each intersection), and geodata type (outputs to .osm format) of RLIS data to mirror OSM data as closely as possible
 
 An updated version of RLIs is released four times per year so it is neccessary to repeat this conversion often
 
+Warning!!! Do add the tags on the output data without first considering if they are a good fit for what is being mapped.  The conversion 
 
 
 ## Dependencies
@@ -19,7 +22,7 @@ The following tools must be installed for the code in this repo to execute prope
     - [GDAL](http://www.gdal.org/)
     - python bindings for gdal
 
-I'm executing this conversion on Windows so the shell scripts will need to be rewritten in bash to work on a Mac or Linux machine.
+I'm running this conversion on Windows and thus the shell scripts are batch files, for them to work on a Mac or Linux machine they would need to be rewritten in bash.
 
 ## Executing the Code
 Get the latest RLIS data here:
