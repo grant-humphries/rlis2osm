@@ -233,7 +233,7 @@ update osm_sts_staging set st_name = 'Sunnyside Hospital-Mount Scott Medical Tra
 --4) Now that abbreviations in street names have been expanded concatenate their parts
 --concat strategy via http://www.laudatio.com/wordpress/2009/04/01/a-better-concat-for-postgresql/
 update osm_sts_staging set 
-	name = array_to_string(array[st_prefix, st_name, sT_type, st_direction], ' ')
+	name = array_to_string(array[st_prefix, st_name, st_type, st_direction], ' ')
 	where highway != 'motorway_link' 
 		or highway is null;
 
