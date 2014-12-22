@@ -41,91 +41,92 @@ insert into osm_trls_staging (geom, abndnd_hwy, access, alt_name, bicycle, cnstr
 		est_width, fee, foot, highway, horse, mtb, name, operator, proposed, r_sysname,
 		surface, wheelchair)
 	select geom,
-		--decommissioned trails have their 'highway' values moved here
-		case when status ~* 'Decommissioned' then 'flag'
+		--decommissioned trails have their 'highway' values moved here, '~~*' is
+		--equivalent to 'ilike', and is being used to execute case insensitive matching
+		case when status ~~* 'Decommissioned' then 'flag'
 			else null end,
 		--access permissions
-		case when status ~* 'Restricted' then 'license'
-			when status ~* 'Restricted_Private' then 'private'
-			when status ~* 'Unknown' then 'unknown'
+		case when status ~~* 'Restricted' then 'license'
+			when status ~~* 'Restricted_Private' then 'private'
+			when status ~~* 'Unknown' then 'unknown'
 			else null end,
 		--alternate name of trail
 		format_titlecase(sharedname),
 		--bicycle permissions
-		case when roadbike ~* 'No' then 'no'
-			when (roadbike ~* 'Yes' and width not in ('1-5', '5 ft')
+		case when roadbike ~~* 'No' then 'no'
+			when (roadbike ~~* 'Yes' and width not in ('1-5', '5 ft')
 				and trlsurface in ('Hard Surface', 'Decking')) 
-				or onstrbike ~* 'Yes' then 'designated'
-			when roadbike ~* 'Yes' then 'yes'
+				or onstrbike ~~* 'Yes' then 'designated'
+			when roadbike ~~* 'Yes' then 'yes'
 			else null end,
 		--trails under construction will have their 'highway' values moved here
-		case when status ~* 'Under construction' then 'flag'
+		case when status ~~* 'Under construction' then 'flag'
 			else null end,
 		--estimated trail width, rlis widths are in feet, osm in meters, to get the
 		--meters value I took the average of the interval and rounded to the nearest
 		--half meter
 		case when width = '1-5' then '1.0'
-			when width = '5 ft' then '1.5'
+			when width ~~* '5 ft' then '1.5'
 			when width = '6-9' then '2.5'
 			when width = '10-14' then '3.5'
 			when width = '15+' then '5.0'
 			else null end,
 		--trail fee information
-		case when status ~* 'Open_Fee' then 'yes'
+		case when status ~~* 'Open_Fee' then 'yes'
 			else null end,
 		--pedestrian permissions
-		case when hike ~* 'No' then 'no'
-			when hike ~* 'Yes' then 'designated' 
+		case when hike ~~* 'No' then 'no'
+			when hike ~~* 'Yes' then 'designated' 
 			else null end,
 		--trail type
-		case when trlsurface ~* 'Stairs' then 'steps' 
-			when onstrbike ~* 'Yes' then 'road'
+		case when trlsurface ~~* 'Stairs' then 'steps' 
+			when onstrbike ~~* 'Yes' then 'road'
 			--any trail with two or more designated uses is a path
-			when (hike ~* 'Yes' and roadbike ~* 'Yes' 
+			when (hike ~~* 'Yes' and roadbike ~~* 'Yes' 
 					and trlsurface in ('Hard Surface', 'Decking') 
 					and width not in ('1-5', '5 ft'))
-				or (hike ~* 'Yes' and mtnbike ~* 'Yes')
-				or (hike ~* 'Yes' and equestrian ~* 'Yes')
-				or (roadbike ~* 'Yes' and equestrian ~* 'Yes')
-				or (mtnbike ~* 'Yes' and equestrian ~* 'Yes') then 'path'
-			when roadbike ~* 'Yes' 
+				or (hike ~~* 'Yes' and mtnbike ~~* 'Yes')
+				or (hike ~~* 'Yes' and equestrian ~~* 'Yes')
+				or (roadbike ~~* 'Yes' and equestrian ~~* 'Yes')
+				or (mtnbike ~~* 'Yes' and equestrian ~~* 'Yes') then 'path'
+			when roadbike ~~* 'Yes' 
 				and trlsurface in ('Hard Surface', 'Decking')
 				and width not in ('1-5', '5 ft') then 'cycleway'
-			when mtnbike ~* 'Yes' then 'path'
-			when equestrian ~* 'Yes' then 'bridleway'
+			when mtnbike ~~* 'Yes' then 'path'
+			when equestrian ~~* 'Yes' then 'bridleway'
 			else 'footway' end,
 		--equestrian permissions
-		case when equestrian ~* 'No' then 'no'
-			when equestrian ~* 'Yes' then 'designated'
+		case when equestrian ~~* 'No' then 'no'
+			when equestrian ~~* 'Yes' then 'designated'
 			else null end,
 		--mountain bike permissions
-		case when mtnbike ~* 'No' then 'no'
-			when mtnbike ~* 'Yes' then 'designated'
+		case when mtnbike ~~* 'No' then 'no'
+			when mtnbike ~~* 'Yes' then 'designated'
 			else null end,
 		--primary trail name
 		format_titlecase(trailname),
 		--managing agency
-		case when agencyname ~* 'Unknown' then null
+		case when agencyname ~~* 'Unknown' then null
 			else format_titlecase(agencyname) end,
 		--proposed trails have their 'highway' values moved here
-		case when status ~* 'Planned' then 'flag'
+		case when status ~~* 'Planned' then 'flag'
 			else null end,
 		--rlis system name, these may eventually be used to create relations, but for now
 		--don't include this attribute if it is identical one of the trails other names
-		case when systemname ~* trailname 
-			or systemname ~* sharedname then null
+		case when systemname ~~* trailname 
+			or systemname ~~* sharedname then null
 			else format_titlecase(systemname) end,
 		--trail surface
-		case when trlsurface ~* 'Chunk Wood' then 'woodchips'
-			when trlsurface ~* 'Decking' then 'wood'
-			when trlsurface ~* 'Hard Surface' then 'paved'
-			when trlsurface ~* 'Imported Material' then 'compacted'
-			when trlsurface ~* 'Native Material' then 'ground'
-			when trlsurface ~* 'Snow' then 'snow'
+		case when trlsurface ~~* 'Chunk Wood' then 'woodchips'
+			when trlsurface ~~* 'Decking' then 'wood'
+			when trlsurface ~~* 'Hard Surface' then 'paved'
+			when trlsurface ~~* 'Imported Material' then 'compacted'
+			when trlsurface ~~* 'Native Material' then 'ground'
+			when trlsurface ~~* 'Snow' then 'snow'
 			else null end,
 		--accessibility status
-		case when accessible ~* 'Accessible' then 'yes'
-			when accessible ~* 'Not Accessible' then 'no'
+		case when accessible ~~* 'Accessible' then 'yes'
+			when accessible ~~* 'Not Accessible' then 'no'
 			else null end
 	from rlis_trails
 	where (status != 'Conceptual' or status is null)
@@ -364,7 +365,7 @@ create index alt_name_ix on osm_trls_staging using BTREE (alt_name);
 vacuum analyze osm_trls_staging;
 
 update osm_trls_staging set alt_name = 'Tualatin Valley Water District Water Treatment Plant Trails'
-	where alt_name ~* 'TVWD Water Treatment Plant Trails';
+	where alt_name ~~* 'TVWD Water Treatment Plant Trails';
 
 
 --c) 'r_sysname' (aka systemname)
