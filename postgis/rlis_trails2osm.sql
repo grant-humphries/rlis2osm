@@ -41,44 +41,46 @@ insert into osm_trls_staging (geom, abndnd_hwy, access, alt_name, bicycle, cnstr
 		est_width, fee, foot, highway, horse, mtb, name, operator, proposed, r_sysname,
 		surface, wheelchair)
 	select geom,
-		--decommissioned trails have their 'highway' values moved here, '~~*' is
-		--equivalent to 'ilike', and is being used to execute case insensitive matching
+		--'abandoned:highway' - decommissioned trails have their 'highway' values 
+		--moved here, '~~*' is equivalent to 'ilike', and is being used to execute 
+		--case insensitive matching
 		case when status ~~* 'Decommissioned' then 'flag'
 			else null end,
-		--access permissions
+		--'access' - street access permissions
 		case when status ~~* 'Restricted' then 'license'
 			when status ~~* 'Restricted_Private' then 'private'
 			when status ~~* 'Unknown' then 'unknown'
 			else null end,
-		--alternate name of trail
+		--'alt_name' - alternate name of trail
 		format_titlecase(sharedname),
-		--bicycle permissions
+		--'bicycle' - bicycle permissions
 		case when roadbike ~~* 'No' then 'no'
 			when (roadbike ~~* 'Yes' and width not in ('1-5', '5 ft')
 				and trlsurface in ('Hard Surface', 'Decking')) 
 				or onstrbike ~~* 'Yes' then 'designated'
 			when roadbike ~~* 'Yes' then 'yes'
 			else null end,
-		--trails under construction will have their 'highway' values moved here
+		--'construction' - trails under construction will have their 'highway' 
+		--values moved here
 		case when status ~~* 'Under construction' then 'flag'
 			else null end,
-		--estimated trail width, rlis widths are in feet, osm in meters, to get the
-		--meters value I took the average of the interval and rounded to the nearest
-		--half meter
+		--'est_width' - estimated trail width, rlis widths are in feet, osm in meters, 
+		--to get themeters value I took the average of the interval and rounded to the
+		--nearest half meter
 		case when width = '1-5' then '1.0'
 			when width ~~* '5 ft' then '1.5'
 			when width = '6-9' then '2.5'
 			when width = '10-14' then '3.5'
 			when width = '15+' then '5.0'
 			else null end,
-		--trail fee information
+		--'fee' - trail fee information
 		case when status ~~* 'Open_Fee' then 'yes'
 			else null end,
-		--pedestrian permissions
+		--'foot' - pedestrian permissions
 		case when hike ~~* 'No' then 'no'
 			when hike ~~* 'Yes' then 'designated' 
 			else null end,
-		--trail type
+		--'highway' - trail type
 		case when trlsurface ~~* 'Stairs' then 'steps' 
 			when onstrbike ~~* 'Yes' then 'road'
 			--any trail with two or more designated uses is a path
@@ -95,28 +97,29 @@ insert into osm_trls_staging (geom, abndnd_hwy, access, alt_name, bicycle, cnstr
 			when mtnbike ~~* 'Yes' then 'path'
 			when equestrian ~~* 'Yes' then 'bridleway'
 			else 'footway' end,
-		--equestrian permissions
+		--'horse' - equestrian permissions
 		case when equestrian ~~* 'No' then 'no'
 			when equestrian ~~* 'Yes' then 'designated'
 			else null end,
-		--mountain bike permissions
+		--'mtb' - mountain bike permissions
 		case when mtnbike ~~* 'No' then 'no'
 			when mtnbike ~~* 'Yes' then 'designated'
 			else null end,
-		--primary trail name
+		--'name' - primary trail name
 		format_titlecase(trailname),
-		--managing agency
+		--'operator' - managing agency
 		case when agencyname ~~* 'Unknown' then null
 			else format_titlecase(agencyname) end,
-		--proposed trails have their 'highway' values moved here
+		--'proposed' - proposed trails have their 'highway' values moved here
 		case when status ~~* 'Planned' then 'flag'
 			else null end,
-		--rlis system name, these may eventually be used to create relations, but for now
-		--don't include this attribute if it is identical one of the trails other names
+		--'RLIS:systemname' - rlis system name, these may eventually be used to create
+		--relations, but for now don't include this attribute if it is identical one of 
+		--the trails other names
 		case when systemname ~~* trailname 
 			or systemname ~~* sharedname then null
 			else format_titlecase(systemname) end,
-		--trail surface
+		--'surface' - trail surface
 		case when trlsurface ~~* 'Chunk Wood' then 'woodchips'
 			when trlsurface ~~* 'Decking' then 'wood'
 			when trlsurface ~~* 'Hard Surface' then 'paved'
@@ -124,7 +127,7 @@ insert into osm_trls_staging (geom, abndnd_hwy, access, alt_name, bicycle, cnstr
 			when trlsurface ~~* 'Native Material' then 'ground'
 			when trlsurface ~~* 'Snow' then 'snow'
 			else null end,
-		--accessibility status
+		--'wheelchair' - accessibility status for diabled persons
 		case when accessible ~~* 'Accessible' then 'yes'
 			when accessible ~~* 'Not Accessible' then 'no'
 			else null end

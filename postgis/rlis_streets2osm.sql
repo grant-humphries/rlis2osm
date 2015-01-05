@@ -5,7 +5,7 @@
 ---------------------------------
 
 --ensuring that client encoding is 'UTF8', on when this script is called from a
---batch file on windows 7 the encoding is 'WIN1252' which cause errors to be thrown
+--batch file on windows 7 the encoding is 'WIN1252' which causes errors to be thrown
 set client_encoding to 'UTF8';
 
 vacuum analyze rlis_streets;
@@ -41,7 +41,7 @@ insert into osm_sts_staging (geom, st_prefix, st_name, st_type, st_direction,
 		--expand street name prefix, '~~*' operator is the same as 'ilike', and is
 		--being used to execute case insensitive matching
 		case when prefix ~~* 'N' then 'North'
-			when prefix ~~* 'NE' then 'Northwest'
+			when prefix ~~* 'NE' then 'Northeast'
 			when prefix ~~* 'E' then 'East'
 			when prefix ~~* 'SE' then 'Southeast'
 			when prefix ~~* 'S' then 'South'
