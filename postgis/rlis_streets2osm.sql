@@ -83,7 +83,7 @@ insert into osm_sts_staging (geom, st_prefix, st_name, st_type, st_direction,
 			--if not in this list, put original value in title case
 			else upper(substring(ftype from 1 for 1)) || 
 				lower(substring(ftype from 2 for length(ftype))) end,
-		--expnad street direction suffix
+		--expand street direction suffix
 		case when direction ~~* 'N' then 'North'
 			when direction ~~* 'NB' then 'Northbound'
 			when direction ~~* 'E' then 'East'
