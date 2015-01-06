@@ -30,8 +30,8 @@ set trails_tbl=osm_trails
 set rlis_trails_osm=%current_export%\rlis_trails.osm
 set osm_trails_shp=%shp_export%\rlis_osm_trails.shp
 
-call:pgsql-shp2osm
-::call:pgsql2osm
+call:pgsql2osm
+::call:pgsql-shp2osm
 
 echo "rlis to osm conversion completed"
 echo "end time is: %time:~0,8%"
@@ -43,26 +43,26 @@ goto:eof
 ::Function section begins here
 
 :pgsql2osm
-::The functionality of converting pgsql data to osm has not quite yet been implemented,
-::a pull request that will do this has been submitted, but not yet accepted, see the 
-::following ticket to track progress: https://github.com/pnorman/ogr2osm/pull/29
+::Export translated rlis data in postgres db to osm spatial format using ogr2osm
 
-set st_sql_param="SELECT * FROM %streets_tbl%"
-set st_pgsql_string=PG:dbname=%db_name% user=%pg_user% host=%pg_host% --sql %st_sql_param%
-python %ogr2osm_cmd% -e %or_spn% -f -o %rlis_streets_osm% ^
-	-t %streets_trans% %st_pgsql_string%
+::create string that establishes connection to postgresql db
+set pgsql_str="PG:dbname=%db_name% user=%pg_user% host=%pg_host%"
 
-set tr_sql_param="SELECT * FROM %trails_tbl%"
-set tr_pgsql_string=PG:dbname=%db_name% user=%pg_user% host=%pg_host% --sql %tr_sql_param%
+::a sql query is needed to export specific data from the postgres db, if
+::not supplied all data from the named db will be exported
+set streets_sql="SELECT * FROM %streets_tbl%"
 python %ogr2osm_cmd% -e %or_spn% -f -o %rlis_streets_osm% ^
-	-t %streets_trans% %tr_pgsql_string%
+	-t %streets_trans% --sql %streets_sql% %pgsql_str%
+
+set trails_sql="SELECT * FROM %trails_tbl%"
+python %ogr2osm_cmd% -e %or_spn% -f -o %rlis_trails_osm% ^
+	-t %trails_trans% --sql %trails_sql% %pgsql_str%
 
 goto:eof
 
 
 :export2shp
-::Export rlis streets, which have had their attributes and geometry modified to suit
-::osm, back into shapefile format
+::Export osm-translated rlis data back into shapefile format
 
 ::create folder for exported shapefiles
 if not exist %shp_export% mkdir %shp_export%
@@ -79,14 +79,16 @@ goto:eof
 
 
 :pgsql-shp2osm
-::Convert rlis-osm shapefiles into .osm spatial data format
+::Convert osm data in postgres db to osm spatial format via shapefiles, now that
+::ogr2osm allows direction conversion from pgsql to osm this is deprecated, but
+::am keeping it around just in case
 
 ::convert pgsql data into shapefiles
 call:export2shp
 
 ::Convert shapefiles into osm data, the -e parameter indicates the spatial reference
 ::of the input data (output is always wgs84), -f overwrites any existing data, -t is
-::the transaltion files that modifies attributes
+::the translation file that modifies attributes
 python %ogr2osm_cmd% -e %or_spn% -f -o %rlis_streets_osm% ^
 	-t %streets_trans% %osm_streets_shp%
 
