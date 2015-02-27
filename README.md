@@ -10,23 +10,23 @@ Because RLIS is updated and released quarterly the conversion needs to be execut
 The following tools must be installed for rlis2osm to run properly:
 
 * [PostGreSQL](http://www.postgresql.org/download/)	
-  PostGres extensions:
+    PostGres extensions:
     1. [PostGIS](http://postgis.net/install/)
 * [ogr2osm](https://github.com/pnorman/ogr2osm)	
-  Dependencies for ogr2osm:
+    Dependencies for ogr2osm:
     1. [GDAL](http://www.gdal.org/)
     2. Python bindings for GDAL
 
-This conversion was developed in a Windows environment thus the shell scripts are batch files.  To port this process to Mac or Linux machine those files need to be rewritten in bash (which shouldn't been overly difficult given the similarities between the two languages).
+The shell script to execute this workflow has been written in bash (linux, mac) and as a batchfile (windows) so if the dependencies are met the conversion should be possible on most major platforms.
 
 ### Executing the Conversion
-Once all of the dependencies are installed and running properly the latest verison of RLIS data can be downloaded here:
+Once the dependencies are installed and running properly the latest verison of RLIS data can be downloaded here:
 * [RLIS Streets](http://rlisdiscovery.oregonmetro.gov/?action=viewDetail&layerID=556)
 * [RLIS Trails](http://rlisdiscovery.oregonmetro.gov/?action=viewDetail&layerID=2404)
 
-From there adjust the file paths for the street and trail data in the shell scripts to point to these downloads.  Also check the file paths of the workspace and output variables to ensure that they point to the proper locations on your local machine.  Once the files paths are sound launch `rlis2osm.bat` from the command prompt and the conversion will be carried out.
+Within the shell script a few variables will need to be assigned to your local directories and environment settings.  These include the postgresql parameters (named `pg_user`, `pg_host`, `pg_dbase`), and the directores for rlis, this repo, the location where the osm data will be written and the directory holding ogr2osm.  Once these variables are sound launch `rlis2osm.sh` or `rlis2osm.bat` from the appropriate shell and the conversion will be carried out.
 
-**Note!!!** Upon successfully transforming the data do not add the tags that appear on the output to OpenStreetMap without first considering if they are a good fit for what is being mapped.  Much effort has been put into making this conversion as accurate as possible (with reliance on the [OSM Wiki](wiki.osm.org) to do so), but streets and trails that have common attributes in RLIS may not always map to the same tags in OSM.  Use aerial imagery, the wiki, and any other license compliant resources that you have at your disposal to ensure that the attributes are accurate and in line with OSM convention before uploading them.
+**Note!!!** Upon successfully transforming the data do not add the tags that appear on the output to OpenStreetMap without first considering if they are a good fit for what is being mapped.  Much effort has been put into making this conversion as accurate as possible (with reliance on the [OSM Wiki](wiki.osm.org)), but streets and trails that have common attributes in RLIS may not always map to the same tags in OSM.  Use aerial imagery, the wiki, and any other license compliant resources that you have at your disposal to ensure that the attributes are accurate and in line with OSM convention before uploading them.
 
 
 #### Special Thanks
