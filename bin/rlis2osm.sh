@@ -85,7 +85,8 @@ pgsql2osm()
 
 	# create string that establishes connection to postgresql db
 	ogr2osm="${ogr2osm_dir}/ogr2osm.py"
-	pgsql_str="PG:dbname=${pg_dbase} user=${pg_user} host=${pg_host}"
+	pgsql_str="PG:dbname=${pg_dbase} user=${pg_user} \
+		host=${pg_host} password=${PGPASSWORD}"
 
 	# a sql query is needed to export specific data from the postgres db, if
 	# not supplied all data from the named db will be exported
@@ -93,20 +94,22 @@ pgsql2osm()
 	streets_sql="SELECT * FROM $streets_tbl"
 	rlis_streets_osm="${cur_export}/rlis_streets.osm"
 	streets_trans="${code_dir}/ogr2osm/rlis_streets_trans.py"
-	python $ogr2osm -e $or_spn -f -o $rlis_streets_osm \
-		-t $streets_trans --sql $streets_sql $pgsql_str
+
+	$python_gdal $ogr2osm -e $or_spn -f -o $rlis_streets_osm \
+		-t $streets_trans --sql "$streets_sql" "$pgsql_str"
 
 	trails_tbl=osm_trails
 	trails_sql="SELECT * FROM $trails_tbl"
 	rlis_trails_osm="${cur_export}/rlis_trails.osm"
 	trails_trans="${code_dir}/ogr2osm/rlis_trails_trans.py"
+	
 	$python_gdal $ogr2osm -e $or_spn -f -o $rlis_trails_osm \
-		-t $trails_trans --sql $trails_sql $pgsql_str
+		-t $trails_trans --sql "$trails_sql" "$pgsql_str"
 }
 
-createPostgisDb;
-loadRlisShapefiles;
-executeAttributeConversion;
+# createPostgisDb;
+# loadRlisShapefiles;
+# executeAttributeConversion;
 pgsql2osm;
 
 echo "rlis to osm conversion completed,"
