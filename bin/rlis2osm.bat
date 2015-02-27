@@ -14,20 +14,24 @@ set pg_user=postgres
 ::set the password for most postgres commands in the current session
 set /p pgpassword="Enter postgres password:"
 
-::Set workspaces and project global project variables
-set rlis_workspace=G:\Rlis
-set code_workspace=G:\PUBLIC\OpenStreetMap\rlis2osm
-set export_workspace=G:\PUBLIC\OpenStreetMap\data\RLIS_osm
+::Set dirs and project global project variables
+set rlis_dir=G:\Rlis
+set code_dir=G:\PUBLIC\OpenStreetMap\rlis2osm
+set export_dir=G:\PUBLIC\OpenStreetMap\data\RLIS_osm
+set ogr2osm_dir=P:\ogr2osm
 
 set or_spn=2913
-set rlis_streets_shp=%rlis_workspace%\STREETS\streets.shp
-set rlis_trails_shp=%rlis_workspace%\TRANSIT\trails.shp
+set rlis_streets_shp=%rlis_dir%\STREETS\streets.shp
+set rlis_trails_shp=%rlis_dir%\TRANSIT\trails.shp
 
 call:createPostgisDb
 call:loadRlisShapefiles
 call:executeAttributeConversion
 call:createExportFolder
-call:export2osm
+call:pgsql2osm
+
+echo "rlis to osm conversion completed"
+echo "end time is: %time:~0,8%"
 
 goto:eof
 
@@ -65,15 +69,15 @@ goto:eof
 
 ::create function that converts postgres strings to tile case, since it's a
 ::database object it will then be able to be called by any subsequent script
-set tcase_script=%code_workspace%\postgis\string2titlecase.sql
+set tcase_script=%code_dir%\postgis\string2titlecase.sql
 psql -q -h %pg_host% -d %db_name% -U %pg_user% -f %tcase_script%
 
 echo "Street attribute conversion beginning, start time is: %time:~0,8%"
-set streets_script=%code_workspace%\postgis\rlis_streets2osm.sql
+set streets_script=%code_dir%\postgis\rlis_streets2osm.sql
 psql -q -h %pg_host% -d %db_name% -U %pg_user% -f %streets_script%
 
 echo "Trail attribute conversion beginning, start time is: %time:~0,8%"
-set trails_script=%code_workspace%\postgis\rlis_trails2osm.sql
+set trails_script=%code_dir%\postgis\rlis_trails2osm.sql
 psql -q -h %pg_host% -d %db_name% -U %pg_user% -f %trails_script%
 
 goto:eof
@@ -94,23 +98,33 @@ for %%i in (%rlis_streets_shp%) do (
 )
 
 ::create a sub-folder in export directory based on the modified date
-set current_export=%export_workspace%\%mod_yr_mon%
+set current_export=%export_dir%\%mod_yr_mon%
 if not exist %current_export% mkdir %current_export%
 
 goto:eof
 
 
-:export2osm
-::Export converted streets and trails to .osm format
+:pgsql2osm
+::Export translated rlis data in postgres db to osm spatial format using ogr2osm
 
-::ogr2osm which will be used to get the data into .osm format requires gdal with python bindings,
-::at this time it is easiest for me to access the version of of gdal that I have with this add-on
-::via the OSGeo4W Shell.  Thus that shell needs to be called
-set osgeo4w_shell=C:\OSGeo4W\OSGeo4W.bat
-set rlis_ogr2osm=%code_workspace%\bin\rlis_ogr2osm.bat
+::create string that establishes connection to postgresql db
+set ogr2osm=%ogr2osm_dir%\ogr2osm.py
+set pgsql_str="PG:dbname=%db_name% user=%pg_user% host=%pg_host%"
 
-::the last seven variables called are parameters passed to the osgeo4w batch file
-start %osgeo4w_shell% call %rlis_ogr2osm% %db_name% %pg_host% ^
-	%pg_user% %pgpassword% %code_workspace% %current_export% %or_spn%
+::a sql query is needed to export specific data from the postgres db, if
+::not supplied all data from the named db will be exported
+set streets_tbl=osm_streets
+set streets_sql="SELECT * FROM %streets_tbl%"
+set rlis_streets_osm=%current_export%\rlis_streets.osm
+set streets_trans=%code_dir%\ogr2osm\rlis_streets_trans.py
+python %ogr2osm% -e %or_spn% -f -o %rlis_streets_osm% ^
+	-t %streets_trans% --sql %streets_sql% %pgsql_str%
+
+set trails_tbl=osm_trails
+set trails_sql="SELECT * FROM %trails_tbl%"
+set rlis_trails_osm=%current_export%\rlis_trails.osm
+set trails_trans=%code_dir%\ogr2osm\rlis_trails_trans.py
+python %ogr2osm% -e %or_spn% -f -o %rlis_trails_osm% ^
+	-t %trails_trans% --sql %trails_sql% %pgsql_str%
 
 goto:eof
