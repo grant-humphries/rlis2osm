@@ -107,9 +107,9 @@ pgsql2osm()
 		-t $trails_trans --sql "$trails_sql" "$pgsql_str"
 }
 
-# createPostgisDb;
-# loadRlisShapefiles;
-# executeAttributeConversion;
+createPostgisDb;
+loadRlisShapefiles;
+executeAttributeConversion;
 pgsql2osm;
 
 echo "rlis to osm conversion completed,"
