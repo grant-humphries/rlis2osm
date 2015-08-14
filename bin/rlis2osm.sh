@@ -26,7 +26,6 @@ ogr2osm_dir="P:/ogr2osm"
 or_spn=2913
 rlis_streets_shp="${rlis_dir}/STREETS/streets.shp"
 rlis_trails_shp="${rlis_dir}/TRANSIT/trails.shp"
-python_gdal="C:/Python27/ArcGIS10.3/python"
 
 createPostgisDb()
 {
@@ -95,7 +94,7 @@ pgsql2osm()
 	rlis_streets_osm="${cur_export}/rlis_streets.osm"
 	streets_trans="${code_dir}/ogr2osm/rlis_streets_trans.py"
 
-	$python_gdal $ogr2osm -e $or_spn -f -o $rlis_streets_osm \
+	python $ogr2osm -e $or_spn -f -o $rlis_streets_osm \
 		-t $streets_trans --sql "$streets_sql" "$pgsql_str"
 
 	trails_tbl=osm_trails
@@ -103,7 +102,7 @@ pgsql2osm()
 	rlis_trails_osm="${cur_export}/rlis_trails.osm"
 	trails_trans="${code_dir}/ogr2osm/rlis_trails_trans.py"
 	
-	$python_gdal $ogr2osm -e $or_spn -f -o $rlis_trails_osm \
+	python $ogr2osm -e $or_spn -f -o $rlis_trails_osm \
 		-t $trails_trans --sql "$trails_sql" "$pgsql_str"
 }
 
