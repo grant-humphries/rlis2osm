@@ -1,5 +1,5 @@
 --RLIS Streets to OSM Attribute Conversion
---Grant Humphries for TriMet, 2012-2014
+--Grant Humphries, 2012-2014
 --PostGIS Version: 2.1
 --PostGreSQL Version: 9.3
 ---------------------------------
