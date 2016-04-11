@@ -9,8 +9,8 @@ Because RLIS is updated and released quarterly the conversion needs to be execut
 ### Dependencies
 The following tools must be installed for rlis2osm to run properly:
 
-* [PostGreSQL](http://www.postgresql.org/download/)  
-  **PostGres extensions:**
+* [PostgreSQL](http://www.postgresql.org/download/)  
+  **Postgres extensions:**
     1. [PostGIS](http://postgis.net/install/)
 * [ogr2osm](https://github.com/pnorman/ogr2osm)	 
   **Dependencies for ogr2osm:**
