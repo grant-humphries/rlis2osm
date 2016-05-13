@@ -5,8 +5,13 @@ setup(
     version='0.2.0',
     author='Grant Humphries',
     description='',
+    entry_points={
+        'console_scripts': [
+            'ogr2osm = ogr2osm.ogr2osm:main'
+        ]
+    },
     install_requires=[
-        'gdal>=1.11.2',
+        'ogr2osm>=0.1.0',
         'titlecase>=0.8.1'
     ],
     license='GPL',

@@ -35,10 +35,10 @@ create_postgis_db() {
 
 load_rlis_shapefiles() {
     # Load rlis streets and trails into new postgis db
-    shp2pgsql -s "${OSPN}" -D -I "${STREETS_SHP}" rlis_streets \
+    shp2pgsql -s "${OSPN}" -D -I "${STREETS_SHP}" 'rlis_streets' \
         | psql -q -h "${HOST}" -U "${USER}" -d "${DBNAME}"
 
-    shp2pgsql -s "${OSPN}" -D -I -W 'LATIN1' "${TRAILS_SHP}" rlis_trails \
+    shp2pgsql -s "${OSPN}" -D -I -W 'LATIN1' "${TRAILS_SHP}" 'rlis_trails' \
         | psql -q -h "${HOST}" -U "${USER}" -d "${DBNAME}"
 }
 
@@ -49,15 +49,15 @@ execute_attribute_conversion() {
     # create function that converts postgres strings to tile case,
     # since it's a database object it will then be able to be called by
     # any subsequent script
-    titlecase_sql="${CODE_DIR}/postgis/string2titlecase.sql"
+    titlecase_sql="${CODE_DIR}/postgisql/string2titlecase.sql"
     psql -q -h "${HOST}" -d "${DBNAME}" -U "${USER}" -f "${titlecase_sql}"
 
     echo "Street attribute conversion beginning, start time is: $(date +'%r')"
-    streets_sql="${CODE_DIR}/postgis/rlis_streets2osm.sql"
+    streets_sql="${CODE_DIR}/postgisql/rlis_streets2osm.sql"
     psql -q -h "${HOST}" -d "${DBNAME}" -U "${USER}" -f "${streets_sql}"
 
     echo "Trail attribute conversion beginning, start time is: $(date +'%r')"
-    trails_sql="${CODE_DIR}/postgis/rlis_trails2osm.sql"
+    trails_sql="${CODE_DIR}/postgisql/rlis_trails2osm.sql"
     psql -q -h "${HOST}" -d "${DBNAME}" -U "${USER}" -f "${trails_sql}"
 }
 
@@ -77,7 +77,6 @@ pgsql2osm() {
     # using the arcgis version of python that has this, but the
     # GDAL_DATA environment variable must also be reset
     arcpy_dir='C:/Python27/ArcGIS10.3'
-    python="${CODE_DIR}/bin/python"
     export GDAL_DATA="${arcpy_dir}/Lib/site-packages/osgeo/data/gdal"
 
     # create target folder for osm files that reflects rlis files'
@@ -85,29 +84,26 @@ pgsql2osm() {
     create_export_folder
 
     # create string that establishes connection to postgresql db
-    ogr2osm="${OGR2OSM_DIR}/ogr2osm.py"
+    ogr2osm="${CODE_DIR}/bin/ogr2osm"
     pgsql_str="PG:dbname=${DBNAME} user=${USER}
         host=${HOST} password=${PGPASSWORD}"
-
-    echo $pgsql_str
-    exit 1
 
     # a sql query is needed to export specific data from the postgres
     # db, if not supplied all data from the named db will be exported
     streets_tbl='osm_streets'
     streets_sql="SELECT * FROM ${streets_tbl}"
     rlis_streets_osm="${cur_export}/rlis_streets.osm"
-    streets_trans="${CODE_DIR}/ogr2osm/rlis_streets_trans.py"
+    streets_trans="${CODE_DIR}/rlis2osm/streets_translation.py"
 
-    "${python}" "${ogr2osm}" -e "${OSPN}" -f -o "${rlis_streets_osm}" \
+    "${ogr2osm}" -e "${OSPN}" -f -o "${rlis_streets_osm}" \
         -t "${streets_trans}" --sql "${streets_sql}" "${pgsql_str}"
 
     trails_tbl='osm_trails'
     trails_sql="SELECT * FROM ${trails_tbl}"
     rlis_trails_osm="${cur_export}/rlis_trails.osm"
-    trails_trans="${CODE_DIR}/ogr2osm/rlis_trails_trans.py"
+    trails_trans="${CODE_DIR}/rlis2osm/trails_translation.py"
 
-    "${python}" "${ogr2osm}" -e "${OSPN}" -f -o "${rlis_trails_osm}" \
+    "${ogr2osm}" -e "${OSPN}" -f -o "${rlis_trails_osm}" \
         -t "${trails_trans}" --sql "${trails_sql}" "${pgsql_str}"
 }
 
