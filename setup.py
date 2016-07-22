@@ -11,7 +11,10 @@ setup(
         ]
     },
     install_requires=[
+        'fiona>=1.7.0',
+        'gdal>=2.0.2',
         'ogr2osm>=0.1.0',
+        'shapely>=1.5.16'
         'titlecase>=0.8.1'
     ],
     license='GPL',
