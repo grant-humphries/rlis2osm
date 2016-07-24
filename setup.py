@@ -14,7 +14,7 @@ setup(
         'fiona>=1.6.1',
         'gdal>=1.11.3',
         'ogr2osm>=0.1.0',
-        'shapely>=1.5.16'
+        'shapely>=1.5.16',
         'titlecase>=0.8.1'
     ],
     license='GPL',

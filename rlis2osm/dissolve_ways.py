@@ -28,10 +28,10 @@ def get_data_paths():
 
 class WayDissolver(object):
 
-    def __init__(self, way_path, tags=None, tag_exclude=True):
+    def __init__(self, way_path, fields=None, field_exclude=True):
         self.way_path = way_path
         self.ways = self.open_ways()
-        self.tags = self._define_filter_tags(tags, tag_exclude)
+        self.fields = self._define_filter_fields(fields, field_exclude)
 
     def open_ways(self):
         """fiona has the ability open zipped shapefiles, this method
@@ -55,24 +55,24 @@ class WayDissolver(object):
 
         self.ways.close()
 
-    def _define_filter_tags(self, tags, tag_exclude):
+    def _define_filter_fields(self, filter_fields, exclude):
         """verify that supplied fields exist in the shapefile and define
         the fields that must match for a merge to be allowed
         """
 
         fields = self.ways[0]['properties'].keys()
-        if tags:
-            for t in tags:
-                if t not in fields:
+        if filter_fields:
+            for ff in filter_fields:
+                if ff not in fields:
                     logging.error('supplied field: "{}", does not exists in '
-                                  'the data, modify the "tags" input and run '
-                                  'again'.format(t))
+                                  'the data, modify the "fields" input and run '
+                                  'again'.format(ff))
                     exit()
-            if tag_exclude:
-                for t in tags:
-                    fields.pop(t)
+            if exclude:
+                for ff in filter_fields:
+                    fields.remove(ff)
             else:
-                fields = tags
+                fields = filter_fields
 
         return fields
 
@@ -85,26 +85,38 @@ class WayDissolver(object):
             if fid in assigned:
                 continue
 
-            group = list(fid)
+            group = list([fid])
+            assigned.append(fid)
             nodes = way_nodes[fid].values()
-            tags = feat['properties']
+            tags = self._filter_tags(feat['properties'])
 
             while nodes:
                 n = nodes.pop()
                 connected_ways = node_way_map[n]
-                connected_ways.pop(n)
 
                 for way_id in connected_ways:
                     if way_id in assigned:
                         continue
 
-                    if feat['properties'] == self.ways[way_id]['properties']:
-                        this_group.add(way_id)
+                    connect_way = self.ways[way_id]
+                    connect_tags = self._filter_tags(connect_way['properties'])
+
+                    if tags == connect_tags:
+                        group.append(way_id)
+                        assigned.append(way_id)
+                        if len(assigned) % 500 == 0:
+                            print '.',
+
                         for new_node in way_nodes[fid].values():
                             if new_node != n:
                                 nodes.append(n)
-                print nodes
-            exit()
+            way_groups.append(group)
+
+        len_set = set()
+        for g in way_groups:
+            len_set.add(len(g))
+        print len_set
+        print 'test'
 
     def _map_end_pts_to_ways(self):
         node_counter = 0
@@ -133,17 +145,26 @@ class WayDissolver(object):
 
         return node_way_map, way_nodes
 
+    def _filter_tags(self, tags):
+        for t in tags:
+            if t not in self.fields:
+                tags.pop(t)
+        return tags
+
+
+def process_options():
+    pass
+
 
 def main():
     base_path = join(dirname(abspath(__name__)), 'data')
-    zip_path = join(base_path, 'fwy.zip')
-    shp_path = join(base_path, 'unzipped', 'fwy.shp')
+    zip_path = join(base_path, 'streets.zip')
 
-    zip_dissolver = WayDissolver(zip_path)
-    shp_dissolver = WayDissolver(shp_path)
-
-    zip_dissolver.close_ways()
-    shp_dissolver.close_ways()
+    dissolver = WayDissolver(zip_path, ['LENGTH', 'LOCALID', 'LEFTADD1', 'LEFTADD2',
+                                        'RGTADD1', 'RGTADD2', 'LEFTZIP',
+                                        'RIGHTZIP', 'LCOUNTY', 'RCOUNTY', 'LCITY',
+                                        'RCITY', 'UP_DATE', 'CR_DATE'], True)
+    dissolver.dissolve_ways()
 
 
 if __name__ == '__main__':
