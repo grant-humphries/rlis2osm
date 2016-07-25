@@ -1,6 +1,8 @@
 import logging
 from os.path import abspath, basename, dirname, exists, join
 from collections import defaultdict
+from sys import stdout
+from time import time
 
 import fiona
 from shapely.geometry import shape
@@ -13,6 +15,8 @@ TRAILS = 'trails.zip'
 RLIS_TERMS = 'http://rlisdiscovery.oregonmetro.gov/view/terms.htm'
 TEST_WAYS = join(dirname(abspath(__name__)), 'data', 'fwy.zip')
 
+
+start_time = time()
 
 def download_rlis():
     pass
@@ -79,14 +83,16 @@ class WayDissolver(object):
     def dissolve_ways(self):
         node_way_map, way_nodes = self._map_end_pts_to_ways()
 
-        assigned = list()
+        # a set is used here instead of a list because many lookups must
+        # be done on this collection and it reaches a large size
+        assigned = LogSet()
         way_groups = list()
         for fid, feat in self.ways.items():
             if fid in assigned:
                 continue
 
             group = list([fid])
-            assigned.append(fid)
+            assigned.log_add(fid)
             nodes = way_nodes[fid].values()
             tags = self._filter_tags(feat['properties'])
 
@@ -98,25 +104,17 @@ class WayDissolver(object):
                     if way_id in assigned:
                         continue
 
-                    connect_way = self.ways[way_id]
-                    connect_tags = self._filter_tags(connect_way['properties'])
+                    conn_way = self.ways[way_id]
+                    conn_tags = self._filter_tags(conn_way['properties'])
 
-                    if tags == connect_tags:
+                    if tags == conn_tags:
                         group.append(way_id)
-                        assigned.append(way_id)
-                        if len(assigned) % 500 == 0:
-                            print '.',
+                        assigned.log_add(way_id)
 
                         for new_node in way_nodes[fid].values():
                             if new_node != n:
                                 nodes.append(n)
             way_groups.append(group)
-
-        len_set = set()
-        for g in way_groups:
-            len_set.add(len(g))
-        print len_set
-        print 'test'
 
     def _map_end_pts_to_ways(self):
         node_counter = 0
@@ -150,6 +148,37 @@ class WayDissolver(object):
             if t not in self.fields:
                 tags.pop(t)
         return tags
+
+
+class LogSet(set):
+    def __init__(self, dot_value=500, num_value=10000):
+        super(self.__class__, self).__init__()
+        self.dot_value = dot_value
+        self.num_value = num_value
+
+    def log_add(self, list_obj):
+        """check the size of the set after adding an element and log the
+        size at supplied intervals
+        """
+
+        self.add(list_obj)
+        counter = len(self)
+
+        # TODO: use logging instead in print here
+        if counter % self.num_value == 0:
+            stdout.write('{:,}'.format(counter))
+            stdout.flush()
+
+            global start_time
+            print '    {}'.format(time() - start_time)
+            time_check = time()
+            next(iter(self)) in self
+            150000 in self
+            print time() - time_check
+            start_time = time()
+        elif counter % self.dot_value == 0:
+            stdout.write('.')
+            stdout.flush()
 
 
 def process_options():
