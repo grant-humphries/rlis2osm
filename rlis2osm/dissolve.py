@@ -1,33 +1,17 @@
 import logging
-from os.path import abspath, basename, dirname, exists, join
+from argparse import ArgumentParser
 from collections import defaultdict
+from os.path import abspath, basename, dirname, join
 from sys import stdout
 from time import time
 
 import fiona
-from shapely.geometry import shape
+from shapely.geometry import mapping, shape
 from shapely.ops import unary_union
 
-TRIMET_RLIS = '//gisstore/gis/Rlis'
-RLIS_URL = 'http://library.oregonmetro.gov/rlisdiscovery'
-STREETS = 'streets.zip'
-TRAILS = 'trails.zip'
-RLIS_TERMS = 'http://rlisdiscovery.oregonmetro.gov/view/terms.htm'
-TEST_WAYS = join(dirname(abspath(__name__)), 'data', 'fwy.zip')
-
+from rlis2osm.get_data import define_data_paths
 
 start_time = time()
-
-def download_rlis():
-    pass
-
-
-def get_data_paths():
-    if exists(TRIMET_RLIS):
-        streets_shp = join(TRIMET_RLIS, 'STREETS', 'streets.shp')
-        trails_shp = join(TRIMET_RLIS, 'TRANSIT', 'trails.shp')
-    else:
-        streets_shp = join(dirname(abspath(__name__)), )
 
 
 class WayDissolver(object):
@@ -59,28 +43,26 @@ class WayDissolver(object):
 
         self.ways.close()
 
-    def _define_filter_fields(self, filter_fields, exclude):
-        """verify that supplied fields exist in the shapefile and define
-        the fields that must match for a merge to be allowed
-        """
+    def dissolve_ways(self, write_path):
+        way_groups = self._determine_way_groups()
 
-        fields = self.ways[0]['properties'].keys()
-        if filter_fields:
-            for ff in filter_fields:
-                if ff not in fields:
-                    logging.error('supplied field: "{}", does not exists in '
-                                  'the data, modify the "fields" input and run '
-                                  'again'.format(ff))
-                    exit()
-            if exclude:
-                for ff in filter_fields:
-                    fields.remove(ff)
-            else:
-                fields = filter_fields
+        metadata = self.ways.meta()
+        with fiona.open(write_path, 'w', **metadata) as dissolve_shp:
+            for group in enumerate(way_groups):
+                geom_list = list()
+                for i, way_id in enumerate(group):
+                    feat = self.ways[way_id]
+                    geom = shape(feat['geometry'])
+                    geom_list.append(geom)
 
-        return fields
+                dissolve_geom = unary_union(geom_list)
+                dissolve_tags = self._filter_tags(feat['properties'])
+                dissolve_shp.write(dict(
+                    geometry=mapping(dissolve_geom),
+                    properties=dissolve_tags
+                ))
 
-    def dissolve_ways(self):
+    def _determine_way_groups(self):
         node_way_map, way_nodes = self._map_end_pts_to_ways()
 
         # a set is used here instead of a list because many lookups must
@@ -115,6 +97,28 @@ class WayDissolver(object):
                             if new_node != n:
                                 nodes.append(n)
             way_groups.append(group)
+        return way_groups
+
+    def _define_filter_fields(self, filter_fields, exclude):
+        """verify that supplied fields exist in the shapefile and define
+        the fields that must match for a merge to be allowed
+        """
+
+        fields = self.ways[0]['properties'].keys()
+        if filter_fields:
+            for ff in filter_fields:
+                if ff not in fields:
+                    logging.error('supplied field: "{}", does not exists in '
+                                  'the data, modify the "fields" input and run '
+                                  'again'.format(ff))
+                    exit()
+            if exclude:
+                for ff in filter_fields:
+                    fields.remove(ff)
+            else:
+                fields = filter_fields
+
+        return fields
 
     def _map_end_pts_to_ways(self):
         node_counter = 0
@@ -171,10 +175,6 @@ class LogSet(set):
 
             global start_time
             print '    {}'.format(time() - start_time)
-            time_check = time()
-            next(iter(self)) in self
-            150000 in self
-            print time() - time_check
             start_time = time()
         elif counter % self.dot_value == 0:
             stdout.write('.')
@@ -182,7 +182,13 @@ class LogSet(set):
 
 
 def process_options():
-    pass
+    parser = ArgumentParser()
+    parser.add_argument(
+        '-d', '--data_path',
+        default=join(dirname(abspath(__name__)), 'data'),
+        help='file path at which datasets will be downloaded and written to'
+    )
+    parser.add_argument()
 
 
 def main():
@@ -194,6 +200,7 @@ def main():
                                         'RIGHTZIP', 'LCOUNTY', 'RCOUNTY', 'LCITY',
                                         'RCITY', 'UP_DATE', 'CR_DATE'], True)
     dissolver.dissolve_ways()
+    dissolver.close_ways()
 
 
 if __name__ == '__main__':

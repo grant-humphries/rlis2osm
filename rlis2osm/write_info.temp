@@ -1,0 +1,3 @@
+        mod_time = datetime.fromtimestamp(getmtime(streets_shp))
+        write_dir = join(TRIMET_GIS_DRIVE, 'PUBLIC', 'OpenstreetMap',
+                         'RLIS', mod_time.strftime('%Y_%m'))
