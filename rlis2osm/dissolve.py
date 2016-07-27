@@ -51,21 +51,6 @@ class WayDissolver(object):
                 dirname(abspath(__name__)), 'data', 'dissolve_{}.shp'.format(
                     basename(self.way_path).split('.')[0]))
 
-        from pprint import pprint
-        way1 = self.ways[669]
-        pprint(way1)
-        coords1 = shape(way1['geometry']).coords
-        print coords1[0]
-        print coords1[-1], '\n'
-        
-        way2 = self.ways[670]
-        pprint(way2)
-        coords2 = shape(way2['geometry']).coords
-        print coords2[0]
-        print coords2[-1], '\n'
-
-        exit()
-
         way_groups = self._determine_way_groups()
 
         metadata = self.ways.meta.copy()
@@ -224,7 +209,6 @@ def main():
         'DIRECTION', 'FTYPE', 'F_ZLEV', 'PREFIX',
         'STREETNAME', 'TYPE', 'T_ZLEV']
     streets, trails = define_data_paths(refresh=False)
-    streets = join(dirname(abspath(__name__)), 'data', 'streets_test.shp')
     dissolver = WayDissolver(streets, street_fields)
     dissolver.dissolve_ways()
     dissolver.close_ways()
