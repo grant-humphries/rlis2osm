@@ -16,7 +16,7 @@ start_time = time()
 
 class WayDissolver(object):
 
-    def __init__(self, way_path, fields=None, field_exclude=True):
+    def __init__(self, way_path, fields=None, field_exclude=False):
         self.way_path = way_path
         self.ways = self.open_ways()
         self.fields = self._define_filter_fields(fields, field_exclude)
@@ -35,6 +35,8 @@ class WayDissolver(object):
             vfs = None
             path = self.way_path
 
+        print path
+        print vfs
         ways = fiona.open(path, vfs=vfs)
         return ways
 
@@ -43,14 +45,37 @@ class WayDissolver(object):
 
         self.ways.close()
 
-    def dissolve_ways(self, write_path):
+    def dissolve_ways(self, write_path=None):
+        if not write_path:
+            write_path = join(
+                dirname(abspath(__name__)), 'data', 'dissolve_{}.shp'.format(
+                    basename(self.way_path).split('.')[0]))
+
+        from pprint import pprint
+        way1 = self.ways[669]
+        pprint(way1)
+        coords1 = shape(way1['geometry']).coords
+        print coords1[0]
+        print coords1[-1], '\n'
+        
+        way2 = self.ways[670]
+        pprint(way2)
+        coords2 = shape(way2['geometry']).coords
+        print coords2[0]
+        print coords2[-1], '\n'
+
+        exit()
+
         way_groups = self._determine_way_groups()
 
-        metadata = self.ways.meta()
+        metadata = self.ways.meta.copy()
+        meta_fields = metadata['schema']['properties']
+        self._filter_tags(meta_fields)
+
         with fiona.open(write_path, 'w', **metadata) as dissolve_shp:
-            for group in enumerate(way_groups):
+            for group in way_groups:
                 geom_list = list()
-                for i, way_id in enumerate(group):
+                for way_id in group:
                     feat = self.ways[way_id]
                     geom = shape(feat['geometry'])
                     geom_list.append(geom)
@@ -64,6 +89,9 @@ class WayDissolver(object):
 
     def _determine_way_groups(self):
         node_way_map, way_nodes = self._map_end_pts_to_ways()
+
+        print 'determining dissolve groups'
+        print 'number of features processed:'
 
         # a set is used here instead of a list because many lookups must
         # be done on this collection and it reaches a large size
@@ -168,7 +196,7 @@ class LogSet(set):
         self.add(list_obj)
         counter = len(self)
 
-        # TODO: use logging instead in print here
+        # TODO: use logging instead of print here
         if counter % self.num_value == 0:
             stdout.write('{:,}'.format(counter))
             stdout.flush()
@@ -192,13 +220,12 @@ def process_options():
 
 
 def main():
-    base_path = join(dirname(abspath(__name__)), 'data')
-    zip_path = join(base_path, 'streets.zip')
-
-    dissolver = WayDissolver(zip_path, ['LENGTH', 'LOCALID', 'LEFTADD1', 'LEFTADD2',
-                                        'RGTADD1', 'RGTADD2', 'LEFTZIP',
-                                        'RIGHTZIP', 'LCOUNTY', 'RCOUNTY', 'LCITY',
-                                        'RCITY', 'UP_DATE', 'CR_DATE'], True)
+    street_fields = [
+        'DIRECTION', 'FTYPE', 'F_ZLEV', 'PREFIX',
+        'STREETNAME', 'TYPE', 'T_ZLEV']
+    streets, trails = define_data_paths(refresh=False)
+    streets = join(dirname(abspath(__name__)), 'data', 'streets_test.shp')
+    dissolver = WayDissolver(streets, street_fields)
     dissolver.dissolve_ways()
     dissolver.close_ways()
 
