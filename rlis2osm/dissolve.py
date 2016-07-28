@@ -95,20 +95,21 @@ class WayDissolver(object):
                 n = nodes.pop()
                 connected_ways = node_way_map[n]
 
-                for way_id in connected_ways:
-                    if way_id in assigned:
+                for connect_id in connected_ways:
+                    if connect_id in assigned:
                         continue
 
-                    conn_way = self.ways[way_id]
-                    conn_tags = self._filter_tags(conn_way['properties'])
+                    connect_way = self.ways[connect_id]
+                    connect_tags = self._filter_tags(connect_way['properties'])
 
-                    if tags == conn_tags:
-                        group.append(way_id)
-                        assigned.log_add(way_id)
+                    if tags == connect_tags:
+                        group.append(connect_id)
+                        assigned.log_add(connect_id)
 
-                        for new_node in way_nodes[fid].values():
-                            if new_node != n:
-                                nodes.append(n)
+                        connect_nodes = way_nodes[connect_id].values()
+                        for cn in connect_nodes:
+                            if cn != n and cn not in nodes:
+                                nodes.append(cn)
             way_groups.append(group)
         return way_groups
 

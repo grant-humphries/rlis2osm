@@ -4,6 +4,9 @@ setup(
     name='rlis2osm',
     version='0.2.0',
     author='Grant Humphries',
+    dependency_links=[
+        'git+https://github.com/grant-humphries/ogr2osm.git#egg=ogr2osm-0.1.0'
+    ],
     description='',
     entry_points={
         'console_scripts': [
