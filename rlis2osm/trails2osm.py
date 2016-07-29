@@ -1,82 +1,76 @@
 
-# 1) Create table to hold osm trails
-drop table if exists osm_trls_staging cascade;
-create table osm_trls_staging (
-    id serial primary key,
-    geom geometry,
-    abndnd_hwy text, # to be renamed abandoned:highway
-    access text,
-    alt_name text,
-    bicycle text,
-    cnstrctn text, # to be renamed construction
-    est_width text,
-    fee text,
-    foot text,
-    highway text,
-    horse text,
-    mtb text,
-    name text,
-    operator text,
-    proposed text,
-    r_sysname text, # to be renamed RLIS:systemname
-    surface text,
-    wheelchair text
-);
+OSM_FIELDS = {
+    'abandoned:highway': 'str',
+    'access': 'str',
+    'alt_name': 'str',
+    'bicycle': 'str',
+    'construction': 'str',
+    'est_width': 'float',
+    'fee': 'str',
+    'foot': 'str',
+    'highway': 'str',
+    'horse': 'str',
+    'mtb': 'str',
+    'name': 'str',
+    'operator': 'str',
+    'proposed': 'str',
+    'surface': 'str',
+    'wheelchair': 'str'
+}
 
 
-# 2) Populate osm trails staging table with rlis trails data and translate rlis attributes 
-# into osm tags.  Metadata on the rlis trails attributes can be found here:
-# http://rlisdiscovery.oregonmetro.gov/?action=viewDetail&layerID=2404#
+# rlis trails metadata:
+# http://rlisdiscovery.oregonmetro.gov/metadataviewer/display.cfm?meta_layer_id=2404
 
-# 'abandoned:highway' - decommissioned trails have their 'highway' values 
-# moved here, '~~*' is equivalent to 'ilike', and is being used to execute 
-# case insensitive matching
-case when status ~~* 'Decommissioned' then 'flag'
-    else null end,
-
-# 'access' - street access permissions
-case when status ~~* 'Restricted' then 'license'
-    when status ~~* 'Restricted_Private' then 'private'
-    when status ~~* 'Unknown' then 'unknown'
-    else null end,
+# 'access' - street access permissions (derived from 'STATUS' field)
+general_access_map = {
+    'Restricted_Private': 'private',
+    'Unknown': 'unknown'
+}
 
 # 'alt_name' - alternate name of trail
 format_titlecase(sharedname),
 
 # 'bicycle' - bicycle permissions
-case when roadbike ~~* 'No' then 'no'
-    when (roadbike ~~* 'Yes' and width not in ('1-5', '5 ft')
-        and trlsurface in ('Hard Surface', 'Decking')) 
-        or onstrbike ~~* 'Yes' then 'designated'
-    when roadbike ~~* 'Yes' then 'yes'
-    else null end,
+if  roadbike == 'No':
+    return 'no'
+elif roadbike == 'Yes':
+    if est_width > 3
+            and trlsurface in ('Hard Surface', 'Decking')) \
+        or onstrbike == 'Yes':
+    return 'designated'
+elif roadbike == 'Yes':
+    then 'yes'
+else null end,
 
-# 'construction' - trails under construction will have their 'highway' 
-# values moved here
-case when status ~~* 'Under construction' then 'flag'
-    else null end,
+# 'est_width' - estimated trail width, rlis widths are in feet, osm in meters
+def convert_width(rlis_width, round_res):
+    osm_width = None
+    plus_bonus = 1.25
 
-# 'est_width' - estimated trail width, rlis widths are in feet, osm in meters, 
-# to get themeters value I took the average of the interval and rounded to the
-# nearest half meter
-case when width = '1-5' then '1.0'
-    when width ~~* '5 ft' then '1.5'
-    when width = '6-9' then '2.5'
-    when width = '10-14' then '3.5'
-    when width = '15+' then '5.0'
-    else null end,
+    # most rlis widths are in ranges, e.g. 6-9
+    if '-' in rlis_width:
+        min_, max_ = rlis_width.split('-')
+        osm_width = (float(min_)+float(max_)) / 2
+    # some specify that they're at least a certain with, e.g. 15+
+    elif '+' in rlis_width:
+        osm_width = float(rlis_width.replace('+', '')) * plus_bonus
+    elif rlis_width == 'Unknown':
+        osm_width = None
+
+    # convert to meters and round to supplied unit
+    if osm_width:
+        osm_width = round(osm_width * 0.3048, round_res) * round_res
+
+    return osm_width
 
 # 'fee' - trail fee information
 case when status ~~* 'Open_Fee' then 'yes'
     else null end,
 
-# 'foot' - pedestrian permissions
-case when hike ~~* 'No' then 'no'
-    when hike ~~* 'Yes' then 'designated' 
-    else null end,
 
 # 'highway' - trail type
-def determine_hwy_type(trlsurface, onstrbike, hike, roadbike, mtnbike, equestrian):
+def determine_hwy_type(equestrian, hike, mtnbike, onstrbike, roadbike, trlsurface, est_width):
     if trlsurface == 'Stairs':
         return 'steps' 
     elif onstrbike == 'Yes':
@@ -84,14 +78,14 @@ def determine_hwy_type(trlsurface, onstrbike, hike, roadbike, mtnbike, equestria
     # any trail with two or more designated uses is a path
     elif (hike == 'Yes' and roadbike == 'Yes' 
                 and trlsurface in ('Hard Surface', 'Decking')
-                and width not in ('1-5', '5 ft')) \
+                and est_width > 3) \
             or (hike == 'Yes' and mtnbike == 'Yes') \
             or (hike == 'Yes' and equestrian == 'Yes') \
             or (roadbike == 'Yes' and equestrian == 'Yes') \
             or (mtnbike == 'Yes' and equestrian == 'Yes'):
         return 'path'
     elif roadbike == 'Yes' and trlsurface in ('Hard Surface', 'Decking') \
-            and width not in ('1-5', '5 ft'):
+            and est_width > 3:
         return 'cycleway'
     elif mtnbike == 'Yes':
         return 'path'
@@ -100,25 +94,32 @@ def determine_hwy_type(trlsurface, onstrbike, hike, roadbike, mtnbike, equestria
     else:
         return 'footway'
 
-# 'horse' - equestrian permissions
-case when equestrian ~~* 'No' then 'no'
-    when equestrian ~~* 'Yes' then 'designated'
-    else null end,
+# 'abandoned:highway' - decommissioned trails have their 'highway' values
+# moved here
+if status == 'Decommissioned':
+    abndnd_hwy = highway
+    highway = None
+elif status == 'Under construction':
+    construction = highway
+    highway = 'construction'
 
-# 'mtb' - mountain bike permissions
-case when mtnbike ~~* 'No' then 'no'
-    when mtnbike ~~* 'Yes' then 'designated'
-    else null end,
+# access permission mapping use on equestrian, hike, mtn_bike (horse,
+# foot, mtb in osm)
+mode_access_map = {
+    'No': 'no',
+    'Yes': 'designated',
+    None: None
+}
 
 # 'name' - primary trail name
 format_titlecase(trailname),
 
 # 'operator' - managing agency
-case when agencyname ~~* 'Unknown' then null
+case when agencyname == 'Unknown' then null
     else format_titlecase(agencyname) end,
 
 # 'proposed' - proposed trails have their 'highway' values moved here
-case when status ~~* 'Planned' then 'flag'
+case when status == 'Planned' then 'flag'
     else null end,
 
 # 'RLIS:systemname' - rlis system name, these may eventually be used to create
@@ -129,22 +130,30 @@ case when systemname ~~* trailname
     else format_titlecase(systemname) end,
 
 # 'surface' - trail surface
-case when trlsurface ~~* 'Chunk Wood' then 'woodchips'
-    when trlsurface ~~* 'Decking' then 'wood'
-    when trlsurface ~~* 'Hard Surface' then 'paved'
-    when trlsurface ~~* 'Imported Material' then 'compacted'
-    when trlsurface ~~* 'Native Material' then 'ground'
-    when trlsurface ~~* 'Snow' then 'snow'
-    else null end,
+# 'Unknown' and 'Stairs' are valid values, they former will return None
+# the way that the dict is called and the latter is used as a part of
+# the highway tag, 'Water' trails are exluded
+surface_map = {
+    'Chunk Wood': 'woodchips',
+    'Decking': 'wood',
+    'Hard Surface': 'paved',
+    'Imported Material': 'compacted',
+    'Native Material': 'ground',
+    'Snow': 'snow',
+    'Unknown': None,
+    None: None
+}
 
-# 'wheelchair' - accessibility status for diabled persons
-case when accessible ~~* 'Accessible' then 'yes'
-    when accessible ~~* 'Not Accessible' then 'no'
-    else null end
+# 'wheelchair' - accessibility status for disabled persons
+access_map = {
+    'Accessible': 'yes',
+    'Not Accessible': 'no',
+    None: None
+}
 
-from rlis_trails
-where (status != 'Conceptual' or status is null)
-    and (trlsurface != 'Water' or trlsurface is null);
+# trails meeting this criteria should be removed
+if 'STATUS' == 'Conceptual' or 'TRLSURFACE' == 'Water':
+    continue
 
 
 # 3) Clean-up issues that couldn't be handled on the initial insert

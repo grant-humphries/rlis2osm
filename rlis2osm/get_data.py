@@ -1,20 +1,26 @@
 import os
 import urllib2
-from os.path import abspath, basename, dirname, exists, join
+from os.path import abspath, basename, dirname, exists, isdir, join, splitext
 
 RLIS_URL = 'http://library.oregonmetro.gov/rlisdiscovery'
 RLIS_TERMS = 'http://rlisdiscovery.oregonmetro.gov/view/terms.htm'
-TRIMET_DRIVE = '//gisstore/gis'
+TRIMET_RLIS = '//gisstore/gis/Rlis/adghag'
 
 STREETS = 'streets'
 TRAILS = 'trails'
+BIKE_ROUTES = 'bike_routes'
 
 
 def define_data_paths(refresh=True, data_path=None):
-    if exists(TRIMET_DRIVE):
-        trimet_rlis = join(TRIMET_DRIVE, 'Rlis')
-        streets = join(trimet_rlis, 'STREETS', '{}.shp'.format(STREETS))
-        trails = join(trimet_rlis, 'TRANSIT', '{}.shp'.format(TRAILS))
+    if exists(TRIMET_RLIS):
+        rlis_map = get_rlis_dir_structure()
+
+        streets = join(
+            TRIMET_RLIS, rlis_map[STREETS], '{}.shp'.format(STREETS))
+        trails = join(
+            TRIMET_RLIS, rlis_map[TRAILS], '{}.shp'.format(TRAILS))
+        bike_routes = join(
+            TRIMET_RLIS, rlis_map[BIKE_ROUTES], '{}.shp'.format(BIKE_ROUTES))
     else:
         if not data_path:
             data_path = join(dirname(abspath(__name__)), 'data')
@@ -24,22 +30,42 @@ def define_data_paths(refresh=True, data_path=None):
 
         streets = join(data_path, '{}.zip'.format(STREETS))
         trails = join(data_path, '{}.zip'.format(TRAILS))
+        bike_routes = join(data_path, '{}.zip'.format(BIKE_ROUTES))
 
-        if refresh or not exists(streets) or not exists(trails):
-            user_accept = raw_input(
-                'RLIS data is about to be downloaded in order to use this '
-                'data you must comply with their license, see more info here: '
-                '"{}", do you wish to proceed? (y/n)\n'.format(RLIS_TERMS))
+        accepted_terms = False
+        for ds in (streets, trails, bike_routes):
+            if refresh or not exists(ds):
+                if not accepted_terms:
+                    user_accept = raw_input(
+                        'RLIS data is about to be downloaded; in order to use '
+                        'this data you must comply with their license, see '
+                        'further info here: "{}".  Do you wish to proceed? '
+                        '(y/n)\n'.format(RLIS_TERMS))
 
-            if user_accept.lower() not in ('y', 'yes'):
-                "you've declined RLIS's terms, program terminating..."
-                exit()
+                    if user_accept.lower() not in ('y', 'yes'):
+                        "you've declined RLIS's terms, program terminating..."
+                        exit()
+                    else:
+                        accepted_terms = True
 
-            for ds in (STREETS, TRAILS):
                 download_with_progress(
-                    '{}/{}.zip'.format(RLIS_URL, ds), data_path)
+                    '{}/{}'.format(RLIS_URL, basename(ds)), data_path)
 
-    return streets, trails
+    return streets, trails, bike_routes
+
+
+def get_rlis_dir_structure():
+    rlis_map = dict()
+
+    for dir_ in os.listdir(TRIMET_RLIS):
+        dir_path = join(TRIMET_RLIS, dir_)
+        if isdir(dir_path):
+            for file_ in os.listdir(dir_path):
+                if file_.endswith('.shp'):
+                    name = splitext(file_)[0]
+                    rlis_map[name] = dir_
+
+    return rlis_map
 
 
 def download_with_progress(url, write_dir):

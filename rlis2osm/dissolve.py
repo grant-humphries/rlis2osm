@@ -35,8 +35,6 @@ class WayDissolver(object):
             vfs = None
             path = self.way_path
 
-        print path
-        print vfs
         ways = fiona.open(path, vfs=vfs)
         return ways
 
