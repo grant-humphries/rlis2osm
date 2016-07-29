@@ -14,6 +14,7 @@ OSM_FIELDS = {
     'service': 'str',
     'surface': 'str',
     'tunnel': 'str',
+    'RLIS:bicycle': 'str'
 }
 
 def translate_streets():
@@ -24,8 +25,8 @@ def translate_streets():
             tags = feat['properties']
             local_id = tags['LOCALID']
             type_ = tags['TYPE']
-            fz_level = tags['F_ZLEV']
-            tz_level = tags['T_ZLEV']
+            fz_level = tags['fz_level']
+            tz_level = tags['tz_level']
 
 
 def get_bike_tags(bike_routes_path):
@@ -111,123 +112,34 @@ surface_type_map = {
 
 
 # get osm 'layer' values, ground level 1 in rlis, but 0 for osm
-def get_layer_from_zlev(f_zlev, t_zlev):
+def get_layer_from_z_levels(fz_level, tz_level):
 
     # coalesce layer values to one
-    f_zlev = f_zlev or 1
-    t_zlev = t_zlev or 1
-    max_zlev = max(f_zlev, t_zlev)
+    fz_level = fz_level or 1
+    tz_level = tz_level or 1
+    max_z_level = max(fz_level, tz_level)
 
     # not that the value zero is not used in the rlis scheme
-    if f_zlev == t_zlev:
+    if fz_level == tz_level:
         # if the layer is ground level 'layer' is null
-        if f_zlev == 1:
+        if fz_level == 1:
             return None
-        elif f_zlev > 1:
-            return f_zlev - 1
-        elif f_zlev < 0:
-            return f_zlev
-    elif max_zlev == 1:
+        elif fz_level > 1:
+            return fz_level - 1
+        elif fz_level < 0:
+            return fz_level
+    elif max_z_level == 1:
         return None
-    elif max_zlev > 1:
-        return max_zlev - 1
-    elif max_zlev < 0:
-        return min(f_zlev, t_zlev)
-
-
-
+    elif max_z_level > 1:
+        return max_z_level - 1
+    elif max_z_level < 0:
+        return min(fz_level, tz_level)
 
 # 2) Add bridge and tunnel tags based on the layer value
 if layer > 0:
     bridge = 'yes'
 elif layer < 0:
     tunnel = 'yes'
-
-
-
-# 3) Expand abbreviations that are within the street basename
-update osm_sts_staging set st_name =
-    regexp_replace(st_name, '(\s)Av[e]?(-|\s|$)', '\1Avenue\2', 'gi');
-update osm_sts_staging set st_name =
-    regexp_replace(st_name, '(\s)Blvd(-|\s|$)', '\1Boulevard\2 ', 'gi');
-update osm_sts_staging set st_name =
-    regexp_replace(st_name, '(\s)Br[g]?(-|\s|$)', '\1Bridge\2 ', 'gi');
-update osm_sts_staging set st_name =
-    regexp_replace(st_name, '(\s)Ct(-|\s|$)', '\1Court\2 ', 'gi');
-update osm_sts_staging set st_name =
-    regexp_replace(st_name, '(\s)Dr(-|\s|$)', '\1Drive\2 ', 'gi');
-update osm_sts_staging set st_name =
-    regexp_replace(st_name, '(^|\s|-)Fwy(-|\s|$)', '\1Freeway\2 ', 'gi');
-update osm_sts_staging set st_name =
-    regexp_replace(st_name, '(^|\s|-)Hwy(-|\s|$)', '\1Highway\2 ', 'gi');
-update osm_sts_staging set st_name =
-    regexp_replace(st_name, '(\s)Pkwy(-|\s|$)', '\1Parkway\2 ', 'gi');
-update osm_sts_staging set st_name =
-    regexp_replace(st_name, '(\s)Pl(-|\s|$)', '\1Place\2', 'gi');
-update osm_sts_staging set st_name =
-    regexp_replace(st_name, '(\s)Rd(-|\s|$)', '\1Road\2 ', 'gi');
-# St > Street (will not occur at beginning of a st_name)
-update osm_sts_staging set st_name =
-    regexp_replace(st_name, '(\s)St(-|\s|$)', '\1Street\2 ', 'gi');
-
-# Expand other abbreviated parts of street basename
-update osm_sts_staging set st_name =
-    regexp_replace(st_name, '(^|\s|-)Cc(-|\s|$)', '\1Community College\2', 'gi');
-update osm_sts_staging set st_name =
-    regexp_replace(st_name, '(^|\s|-)Co(-|\s|$)', '\1County\2', 'gi');
-update osm_sts_staging set st_name =
-    regexp_replace(st_name, '(\s)Jr(-|\s|$)', '\1Junior\2', 'gi');
-# Mt at beginning of name is 'Mount' later in name is 'Mountain'
-update osm_sts_staging set st_name =
-    regexp_replace(st_name, '(^|-|-\s)Mt(\s)', '\1Mount\2', 'gi');
-update osm_sts_staging set st_name =
-    regexp_replace(st_name, '(\s)Mt(-|\s|$)', '\1Mountain\2', 'gi');
-update osm_sts_staging set st_name =
-    regexp_replace(st_name, '(^|\s|-)Nfd(-|\s|$)', '\1National Forest Development Road\2', 'gi');
-update osm_sts_staging set st_name =
-    regexp_replace(st_name, '(^|\s|-)Pcc(-|\s|$)', '\1Portland Community College\2', 'gi');
-update osm_sts_staging set st_name =
-    regexp_replace(st_name, '(\s)Tc(-|\s|$)', '\1Transit Center\2', 'gi');
-# St > Saint (will only occur at the beginning of a street name)
-update osm_sts_staging set st_name =
-    regexp_replace(st_name, '(^|-|-\s)(Mt\s|Mount\s|Old\s)?St[\.]?(\s)', '\1\2Saint\3', 'gi');
-update osm_sts_staging set st_name =
-    regexp_replace(st_name, '(^|\s|-)Us(-|\s|$)', '\1United States\2', 'gi');
-
-# special case grammar fixes and name expansions
-update osm_sts_staging set st_name =
-    # the '~' operator does a posix regular expression comparison between strings
-    case when st_name ~ '.*(^|\s|-)O(brien|day|neal|neil[l]?)(-|\s|$).*'
-    then format_titlecase(regexp_replace(st_name,
-        '(^|\s|-)O(brien|day|neal|neil[l]?)(-|\s|$)', '\1O''\2\3', 'gi'))
-    else st_name end;
-
-update osm_sts_staging set st_name =
-    case when st_name ~ '.*(^|\s|-)Ft\sOf\s.*' then
-        case when st_name ~ '.*(^|\s|-)Holladay(-|\s|$).*'
-            then regexp_replace(st_name, 'Ft\sOf\sN', 'Foot of North', 'gi')
-        when st_name ~ '.*(^|\s|-)(Madison|Marion)(-|\s|$).*'
-            then regexp_replace(st_name, 'Ft\sOf\sSe', 'Foot of Southeast', 'gi')
-        else st_name end
-    else st_name end;
-
-# more special case name expansions
-# for these an index is created and matches are made on the full name of the
-# field to decrease run time of script
-update osm_sts_staging set st_name = 'Bonneville Power Administration'
-    where st_name = 'Bpa';
-update osm_sts_staging set st_name = 'John Quincy Adams'
-    where st_name = 'Jq Adams';
-update osm_sts_staging set st_name = 'Sunnyside Hospital-Mount Scott Medical Transit Center'
-    where st_name = 'Sunnyside Hosp-Mount Scott Med Transit Center';
-
-
-# 4) Now that abbreviations in street names have been expanded concatenate their parts
-# concat strategy via http://www.laudatio.com/wordpress/2009/04/01/a-better-concat-for-postgresql/
-update osm_sts_staging set
-    name = array_to_string(array[st_prefix, st_name, st_type, st_direction], ' ')
-    where highway != 'motorway_link'
-        or highway is null;
 
 # motorway_link's will have descriptions rather than names via osm convention
 # source: http://wiki.openstreetmap.org/wiki/Link_%28highway%29
