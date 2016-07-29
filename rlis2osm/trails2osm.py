@@ -32,12 +32,6 @@ access_map = {
     'Unknown': 'unknown'
 }
 
-# equestrian, hike --> horse, foot (respectively)
-mode_access_map = {
-    'No': 'no',
-    'Yes': 'designated'
-}
-
 # status --> fee
 fee_map = {
     'Open_Fee': 'yes'
@@ -97,16 +91,14 @@ def translate_trails(trails_path):
                 # TODO need colon in this tag, so not sure if I can instantiate the dict this way
                 abandoned_highway=None,
                 access=access_map.get(status),
-                bicyle=get_bicycle_permissions(
+                bicyle=get_bicycle_permission(
                     on_str_bike, osm_width, road_bike, trl_surface),
                 construction=None,
                 est_width=osm_width,
                 fee=fee_map.get(status),
-                foot=mode_access_map.get(hike),
-                highway=get_highway_value(
-                    equestrian, hike, mtn_bike, on_str_bike, osm_width, 
-                    road_bike, trl_surface),
-                horse=mode_access_map.get(equestrian),
+                foot=get_mode_permission(highway, 'foot', hike),
+                highway=highway,
+                horse=get_mode_permission(highway, 'horse', equestrian),
                 name=trail_name,
                 operator=agency_name,
                 proposed=None,
@@ -120,14 +112,14 @@ def translate_trails(trails_path):
             # 'abandoned:highway' - decommissioned trails have their 'highway' values
             # moved here
             if status == 'Decommissioned':
-                abndnd_hwy = highway
-                highway = None
-            elif status == 'Under construction':
-                construction = highway
-                highway = 'construction'
+                osm_tags['abandoned:highway'] = highway
+                osm_tags['highway'] = None
             elif status == 'Planned':
-                proposed = highway
-                highway = 'proposed'
+                osm_tags['proposed'] = highway
+                osm_tags['highway'] = 'proposed'
+            elif status == 'Under construction':
+                osm_tags['construction'] = highway
+                osm_tags['highway'] = 'construction'
 
             # 'operator' - managing agency
             if agency_name == 'Unknown':
@@ -138,15 +130,6 @@ def translate_trails(trails_path):
             # the trails other names
             if system_name == trail_name or system_name == shared_name:
                 system_name = None
-
-            # highway type 'footway' implies foot permissions, it's redundant to have this
-            # information in the 'foot' tag as well, same goes for 'cycleway' and 'bridleway'
-            if highway == 'footway':
-                foot = None
-            elif highway == 'cycleway':
-                bicycle = None
-            elif highway == 'bridleway':
-                horse = None
 
 
 # functions for complex conversions:
@@ -199,7 +182,26 @@ def get_highway_value(equestrian, hike, mtn_bike, on_str_bike, osm_width,
         return 'footway'
 
 
-def get_bicycle_permissions(on_str_bike, osm_width, road_bike, trl_surface):
+def get_mode_permission(highway, mode, value):
+    # highway type 'footway' implies foot permissions, it's redundant to have this
+    # information in the 'foot' tag as well, same goes for 'cycleway' and 'bridleway'
+    if mode == 'foot' and highway == 'footway':
+        return None
+    elif mode == 'bicycle' and highway == 'cycleway':
+        return None
+    elif mode == 'horse' and highway == 'bridleway':
+        return None
+
+    # equestrian, hike --> horse, foot (respectively)
+    mode_access_map = {
+        'No': 'no',
+        'Yes': 'designated'
+    }
+
+    return mode_access_map.get(value)
+
+
+def get_bicycle_permission(on_str_bike, osm_width, road_bike, trl_surface):
     if road_bike == 'No':
         return 'no'
     elif road_bike == 'Yes':
