@@ -17,16 +17,42 @@ OSM_FIELDS = {
     'RLIS:bicycle': 'str'
 }
 
+# type --> access
+access_map = {
+    'private': [1700, 1740, 1750, 1760, 1800, 1850],
+    'no': [5402]
+}
+
+# type --> service
+service_map = {
+    'alley': [1600],
+    'driveway': [1750, 1850]
+}
+
+# type --> surface
+surface_map = {
+    'unpaved': [2000]
+}
+
+
 def translate_streets():
     streets_shp, trails_shp, bike_routes_shp = define_data_paths()
+    bike_tags_map = get_bike_tags(bike_routes_shp)
 
-    with fiona.open(streets_shp) as streets:
-        for feat in streets:
-            tags = feat['properties']
-            local_id = tags['LOCALID']
-            type_ = tags['TYPE']
-            fz_level = tags['fz_level']
-            tz_level = tags['tz_level']
+    with fiona.open(streets_shp) as rlis_streets:
+        metadata = rlis_streets.meta.copy()
+
+        with fiona.open(write_streets, 'w', **metadata):
+            for feat in rlis_streets:
+                tags = feat['properties']
+                local_id = tags['LOCALID']
+                type_ = tags['TYPE']
+                fz_level = tags['fz_level']
+                tz_level = tags['tz_level']
+
+                bike_tags = bike_tags_map[local_id]
+
+                osm_tags
 
 
 def get_bike_tags(bike_routes_path):
@@ -69,7 +95,8 @@ def get_bike_tags(bike_routes_path):
 
 
 def get_highway_value(type_, name):
-    hwy_type_map = {
+    # highway --> type
+    reverse_highway_map = {
         'motorway': [1110, 5101, 5201],
         'motorway_link': [1120, 1121, 1122, 1123],
         'primary': [1200, 1300, 5301],
@@ -83,10 +110,10 @@ def get_highway_value(type_, name):
         'track': [9000]
     }
 
-    # it's efficient to store the dictionary as above and then reverse
-    # to the form needed for lookups
-    type_hwy_map = {i: k for k, v in hwy_type_map for i in v}
-    highway = type_hwy_map[type_]
+    # type --> highway (it's less verbose to store the dictionary as
+    # above and then reverse to the form needed for lookups)
+    highway_map = {i: k for k, v in reverse_highway_map for i in v}
+    highway = highway_map[type_]
 
     # roads of class residential are named, if the type has indicated
     # residential, but there is no name downgrade to service
@@ -95,57 +122,46 @@ def get_highway_value(type_, name):
 
     return highway
 
-# service tag
-service_type_map = {
-    'alley': [1600],
-    'driveway': [1750, 1850]
-}
-# access tag
-access_type_map = {
-    'private': [1700, 1740, 1750, 1760, 1800, 1850],
-    'no': [5402]
-}
-# surface tag
-surface_type_map = {
-    'unpaved': [2000]
-}
 
+def get_layer_passage_from_z(fz_level, tz_level):
 
-# get osm 'layer' values, ground level 1 in rlis, but 0 for osm
-def get_layer_from_z_levels(fz_level, tz_level):
+    layer, bridge, tunnel = None, None, None
 
     # coalesce layer values to one
     fz_level = fz_level or 1
     tz_level = tz_level or 1
     max_z_level = max(fz_level, tz_level)
 
-    # not that the value zero is not used in the rlis scheme
+    # ground level is 1 for rlis, 0 for osm, rlis skips for 1 to -1 and
+    # does not use 0 as a value, in osm a way is assumed to have a layer
+    # of 0 unless otherwise indicated
     if fz_level == tz_level:
-        # if the layer is ground level 'layer' is null
-        if fz_level == 1:
-            return None
-        elif fz_level > 1:
-            return fz_level - 1
+        if fz_level > 1:
+            layer = fz_level - 1
         elif fz_level < 0:
-            return fz_level
-    elif max_z_level == 1:
-        return None
+            layer = fz_level
     elif max_z_level > 1:
-        return max_z_level - 1
+        layer = max_z_level - 1
     elif max_z_level < 0:
-        return min(fz_level, tz_level)
+        layer = min(fz_level, tz_level)
 
-# 2) Add bridge and tunnel tags based on the layer value
-if layer > 0:
-    bridge = 'yes'
-elif layer < 0:
-    tunnel = 'yes'
+    # if layer is not zero assume it is a bridge or tunnel
+    if layer > 0:
+        bridge = 'yes'
+    elif layer < 0:
+        tunnel = 'yes'
 
-# motorway_link's will have descriptions rather than names via osm convention
-# source: http://wiki.openstreetmap.org/wiki/Link_%28highway%29
-update osm_sts_staging set
-    descriptn = array_to_string(array[st_prefix, st_name, st_type, st_direction], ' ')
-    where highway = 'motorway_link';
+    return layer, bridge, tunnel
+
+
+def name_adjustments(highway):
+    # motorway_link's have descriptions, not names, via osm convention
+    description = None
+    if highway == 'motorway_link':
+        description = highway
+        highway = None
+
+    return highway, description
 
 
 # this may help in determining how to merge connected segments with

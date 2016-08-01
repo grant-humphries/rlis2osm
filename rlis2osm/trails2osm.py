@@ -3,6 +3,8 @@
 
 import fiona
 
+from rlis2osm.get_data import define_data_paths
+
 TRAILS = '/some/path/to/some/trails'
 
 # TODO rethink how mountain bike info is handled given that mtb is not a valid key
