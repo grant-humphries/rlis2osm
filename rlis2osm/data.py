@@ -11,6 +11,28 @@ TRAILS = 'trails'
 BIKE_ROUTES = 'bike_routes'
 
 
+class DataPaths(object):
+
+    def __init__(self, src=None, dst=None):
+        self.src = self._get_source_path(src)
+        self.dst = self._get_destination_path(dst)
+        self.temp = dirname(dirname(abspath(__name__)), 'data')
+
+        if not exists(self.temp):
+            os.makedirs(self.temp)
+
+    def _get_source_path(self, src):
+        if src_path:
+            pass
+        elif exists(TRIMET_RLIS):
+            src_path = TRIMET_RLIS
+        else:
+            src_path = dirname(dirname(abspath(__name__)))
+
+    if dst_path:
+        pass
+    elif ex
+
 def define_data_paths(refresh=True, data_path=None):
     if exists(TRIMET_RLIS):
         rlis_map = get_rlis_dir_structure()
@@ -23,7 +45,7 @@ def define_data_paths(refresh=True, data_path=None):
             TRIMET_RLIS, rlis_map[BIKE_ROUTES], '{}.shp'.format(BIKE_ROUTES))
     else:
         if not data_path:
-            data_path = join(dirname(abspath(__name__)), 'data')
+            data_path = join(dirname(dirname(abspath(__name__))), 'data')
 
         if not exists(data_path):
             os.makedirs(data_path)

@@ -9,49 +9,27 @@ import fiona
 from shapely.geometry import mapping, shape
 from shapely.ops import unary_union
 
-from rlis2osm.get_data import define_data_paths
+from rlis2osm.data import define_data_paths
 
 start_time = time()
 
 
 class WayDissolver(object):
 
-    def __init__(self, way_path, fields=None, field_exclude=False):
-        self.way_path = way_path
-        self.ways = self.open_ways()
+    def __init__(self, path, fields=None, field_exclude=False):
+        self.path = path
+        self.ways =
         self.fields = self._define_filter_fields(fields, field_exclude)
-
-    def open_ways(self):
-        """fiona has the ability open zipped shapefiles, this method
-        handles both zipped and unzipped
-        """
-
-        file_ext = self.way_path.split('.')[-1]
-        if file_ext == 'zip':
-            vfs = 'zip:///{}'.format(self.way_path)
-            path = '/{}'.format(
-                basename(self.way_path).replace('.zip', '.shp'))
-        else:
-            vfs = None
-            path = self.way_path
-
-        ways = fiona.open(path, vfs=vfs)
-        return ways
-
-    def close_ways(self):
-        """ways should be closed when processing is done"""
-
-        self.ways.close()
 
     def dissolve_ways(self, write_path=None):
         if not write_path:
             write_path = join(
                 dirname(abspath(__name__)), 'data', 'dissolve_{}.shp'.format(
-                    basename(self.way_path).split('.')[0]))
+                    basename(self.path).split('.')[0]))
 
         way_groups = self._determine_way_groups()
 
-        metadata = self.ways.meta.copy()
+        metadata = self.features.meta.copy()
         meta_fields = metadata['schema']['properties']
         self._filter_tags(meta_fields)
 
@@ -59,7 +37,7 @@ class WayDissolver(object):
             for group in way_groups:
                 geom_list = list()
                 for way_id in group:
-                    feat = self.ways[way_id]
+                    feat = self.features[way_id]
                     geom = shape(feat['geometry'])
                     geom_list.append(geom)
 
@@ -80,7 +58,7 @@ class WayDissolver(object):
         # be done on this collection and it reaches a large size
         assigned = LogSet()
         way_groups = list()
-        for fid, feat in self.ways.items():
+        for fid, feat in self.features.items():
             if fid in assigned:
                 continue
 
@@ -97,7 +75,7 @@ class WayDissolver(object):
                     if connect_id in assigned:
                         continue
 
-                    connect_way = self.ways[connect_id]
+                    connect_way = self.features[connect_id]
                     connect_tags = self._filter_tags(connect_way['properties'])
 
                     if tags == connect_tags:
@@ -116,7 +94,7 @@ class WayDissolver(object):
         the fields that must match for a merge to be allowed
         """
 
-        fields = self.ways[0]['properties'].keys()
+        fields = self.features[0]['properties'].keys()
         if filter_fields:
             for ff in filter_fields:
                 if ff not in fields:
@@ -138,7 +116,7 @@ class WayDissolver(object):
         node_way_map = defaultdict(list)
         way_nodes = dict()
 
-        for fid, feat in self.ways.items():
+        for fid, feat in self.features.items():
             geom = shape(feat['geometry'])
             coords = list(geom.coords)
             f_node = coords[0]
@@ -210,7 +188,7 @@ def main():
     streets, trails = define_data_paths(refresh=False)
     dissolver = WayDissolver(streets, street_fields)
     dissolver.dissolve_ways()
-    dissolver.close_ways()
+    dissolver.close_features()
 
 
 if __name__ == '__main__':
