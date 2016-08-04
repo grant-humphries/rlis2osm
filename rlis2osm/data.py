@@ -1,93 +1,111 @@
 import os
 import urllib2
-from os.path import abspath, basename, dirname, exists, isdir, join, splitext
+from datetime import datetime
+from os.path import abspath, basename, dirname, exists, getmtime, isdir, \
+    join, splitext
+from posixpath import join as urljoin
 
 RLIS_URL = 'http://library.oregonmetro.gov/rlisdiscovery'
 RLIS_TERMS = 'http://rlisdiscovery.oregonmetro.gov/view/terms.htm'
-TRIMET_RLIS = '//gisstore/gis/Rlis/adghag'
-
-STREETS = 'streets'
-TRAILS = 'trails'
-BIKE_ROUTES = 'bike_routes'
 
 
-class DataPaths(object):
+class RlisPaths(object):
 
-    def __init__(self, src=None, dst=None):
-        self.src = self._get_source_path(src)
-        self.dst = self._get_destination_path(dst)
-        self.temp = dirname(dirname(abspath(__name__)), 'data')
+    TRIMET_RLIS = '//gisstore/gis/Rlis/adghag'
 
-        if not exists(self.temp):
-            os.makedirs(self.temp)
+    STREETS = 'streets'
+    TRAILS = 'trails'
+    BIKES = 'bike_routes'
 
-    def _get_source_path(self, src):
-        if src_path:
+    def __init__(self, src_dir=None, dst_dir=None):
+        self.project_dir = join(dirname(dirname(abspath(__name__))), 'data')
+        self.src_dir = self._get_source_dir(src_dir)
+
+        feature_paths = self._get_source_paths()
+        self.streets = feature_paths[self.STREETS]
+        self.trails = feature_paths[self.TRAILS]
+        self.bikes = feature_paths[self.BIKES]
+        self.dst_dir = self._get_destination_dir(dst_dir)
+
+        if not exists(self.project_dir):
+            os.makedirs(self.project_dir)
+
+        if not exists(self.dst_dir):
+            os.makedirs(self.dst_dir)
+
+    def _get_source_dir(self, src_dir):
+        if src_dir:
             pass
-        elif exists(TRIMET_RLIS):
-            src_path = TRIMET_RLIS
+        elif exists(self.TRIMET_RLIS):
+            src_dir = self.TRIMET_RLIS
         else:
-            src_path = dirname(dirname(abspath(__name__)))
+            src_dir = self.project_dir
 
-    if dst_path:
-        pass
-    elif ex
+        return src_dir
 
-def define_data_paths(refresh=True, data_path=None):
-    if exists(TRIMET_RLIS):
-        rlis_map = get_rlis_dir_structure()
+    def _get_source_paths(self):
+        if self.src_dir == self.TRIMET_RLIS:
+            rlis_map = self._get_rlis_structure()
+            streets = join(self.TRIMET_RLIS, rlis_map[self.STREETS],
+                           '{}.shp'.format(self.STREETS))
+            trails = join(self.TRIMET_RLIS, rlis_map[self.TRAILS],
+                          '{}.shp'.format(self.TRAILS))
+            bikes = join(self.TRIMET_RLIS, rlis_map[self.BIKES],
+                         '{}.shp'.format(self.BIKES))
+        else:
+            streets = join(self.src_dir, '{}.zip'.format(self.STREETS))
+            trails = join(self.src_dir, '{}.zip'.format(self.TRAILS))
+            bikes = join(self.src_dir, '{}.zip'.format(self.BIKES))
 
-        streets = join(
-            TRIMET_RLIS, rlis_map[STREETS], '{}.shp'.format(STREETS))
-        trails = join(
-            TRIMET_RLIS, rlis_map[TRAILS], '{}.shp'.format(TRAILS))
-        bike_routes = join(
-            TRIMET_RLIS, rlis_map[BIKE_ROUTES], '{}.shp'.format(BIKE_ROUTES))
-    else:
-        if not data_path:
-            data_path = join(dirname(dirname(abspath(__name__))), 'data')
+        return dict(streets=streets, trails=trails, bikes=bikes)
 
-        if not exists(data_path):
-            os.makedirs(data_path)
+    def _get_destination_dir(self, dst_dir):
+        if dst_dir:
+            pass
+        elif self.src_dir == self.TRIMET_RLIS:
+            mod_time = datetime.fromtimestamp(getmtime(self.streets))
+            # TODO this path isn't fully correct need to look at TriMet directory structure
+            dst_dir = join(basename(self.TRIMET_RLIS), 'PUBLIC',
+                           'OpenStreetMap', 'RLIS', mod_time.strftime('%Y_%m'))
+        else:
+            dst_dir = self.project_dir
 
-        streets = join(data_path, '{}.zip'.format(STREETS))
-        trails = join(data_path, '{}.zip'.format(TRAILS))
-        bike_routes = join(data_path, '{}.zip'.format(BIKE_ROUTES))
+        return dst_dir
 
-        accepted_terms = False
-        for ds in (streets, trails, bike_routes):
-            if refresh or not exists(ds):
-                if not accepted_terms:
-                    user_accept = raw_input(
-                        'RLIS data is about to be downloaded; in order to use '
-                        'this data you must comply with their license, see '
-                        'further info here: "{}".  Do you wish to proceed? '
-                        '(y/n)\n'.format(RLIS_TERMS))
+    def _get_rlis_structure(self):
+        rlis_map = dict()
 
-                    if user_accept.lower() not in ('y', 'yes'):
-                        "you've declined RLIS's terms, program terminating..."
-                        exit()
-                    else:
-                        accepted_terms = True
+        for dir_ in os.listdir(self.TRIMET_RLIS):
+            dir_path = join(self.TRIMET_RLIS, dir_)
+            if isdir(dir_path):
+                for file_ in os.listdir(dir_path):
+                    if file_.endswith('.shp'):
+                        name = splitext(file_)[0]
+                        rlis_map[name] = dir_
 
-                download_with_progress(
-                    '{}/{}'.format(RLIS_URL, basename(ds)), data_path)
-
-    return streets, trails, bike_routes
+        return rlis_map
 
 
-def get_rlis_dir_structure():
-    rlis_map = dict()
+def download_rlis(paths, refresh=False):
+    accepted_terms = False
 
-    for dir_ in os.listdir(TRIMET_RLIS):
-        dir_path = join(TRIMET_RLIS, dir_)
-        if isdir(dir_path):
-            for file_ in os.listdir(dir_path):
-                if file_.endswith('.shp'):
-                    name = splitext(file_)[0]
-                    rlis_map[name] = dir_
+    for ds in (paths.streets, paths.trails, paths.bikes):
+        if refresh or not exists(ds):
+            if not accepted_terms:
+                user_accept = raw_input(
+                    'RLIS data is about to be downloaded; in order to use '
+                    'this data you must comply with their license, see '
+                    'further info here: "{}".  Do you wish to proceed? '
+                    '(y/n)\n'.format(RLIS_TERMS))
 
-    return rlis_map
+                if user_accept.lower() not in ('y', 'yes'):
+                    "you've declined RLIS's terms, program terminating..."
+                    exit()
+                else:
+                    accepted_terms = True
+
+            download_with_progress(
+                urljoin(RLIS_URL, basename(ds)), paths.src_dir)
 
 
 def download_with_progress(url, write_dir):
@@ -125,5 +143,11 @@ def download_with_progress(url, write_dir):
     return file_path
 
 
+def main():
+    rlis_paths = RlisPaths()
+    if rlis_paths.src_dir == RlisPaths.TRIMET_RLIS:
+        download_rlis(rlis_paths)
+
+
 if __name__ == '__main__':
-    define_data_paths()
+    main()
