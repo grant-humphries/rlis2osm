@@ -59,6 +59,13 @@ class StreetNameExpander(object):
         'VW': 'View'
     }
 
+    misc_map = {
+        'HWY': 'Highway',
+        'TC': 'Transit Center',
+        'US': 'United States'
+    }
+
+# TODO: handle streets with STREETNAME 'UNNAMED'
 
 # 'alt_name' - alternate name of trail
 format_titlecase(sharedname),

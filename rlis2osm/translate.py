@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from os.path import basename, join
+from os.path import basename, join, splitext
 
 import fiona
 from fiona.crs import from_epsg
@@ -26,7 +26,7 @@ class Translator(object):
         metadata['driver'] = 'GeoJSON'
         metadata['schema']['properties'] = self.OSM_KEYS
 
-        self.dst_path = self.dst_path.replace('.shp', '.geojson')
+        self.dst_path = '{}.geojson'.formatsplitext(self.dst_path.replace)[0]('.shp', '.geojson')
 
         return metadata
 
@@ -311,7 +311,7 @@ class TrailsTranslator(Translator):
         self.width = None
 
     def translate_trails(self):
-        rlis_trails = fiona.open(self.src_path)
+        rlis_trails = fiona.open(**zip_path(self.src_path))
 
         metadata = rlis_trails.meta.copy()
         metadata = self._translate_metadata(metadata)
@@ -435,8 +435,8 @@ class TrailsTranslator(Translator):
         if self.hike == 'No':
             foot = 'no'
 
-        if (self.mtn_bike == 'No' and self.road_bike != 'Yes') or \
-                (self.road_bike == 'No' and self.mtn_bike != 'Yes'):
+        if ((self.mtn_bike == 'No' and self.road_bike != 'Yes') or
+                (self.road_bike == 'No' and self.mtn_bike != 'Yes')):
             bicycle = 'no'
 
         return highway, dict(bicycle=bicycle, foot=foot, horse=horse)
