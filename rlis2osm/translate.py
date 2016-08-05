@@ -26,7 +26,7 @@ class Translator(object):
         metadata['driver'] = 'GeoJSON'
         metadata['schema']['properties'] = self.OSM_KEYS
 
-        self.dst_path = '{}.geojson'.formatsplitext(self.dst_path.replace)[0]('.shp', '.geojson')
+        self.dst_path = '{}.geojson'.format(splitext(self.dst_path)[0])
 
         return metadata
 
