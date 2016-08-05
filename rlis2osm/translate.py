@@ -115,8 +115,8 @@ class StreetTranslator(Translator):
                 self.type = tags['TYPE']
                 self.tz_level = tags['T_ZLEV']
 
-                name = '{} {} {} {}'.format(self.prefix, self.street_name, self.f_type, self.direction).trim()
-                highway = self._get_highway_value()
+                name = self._concatenate_name()
+                highway = self._get_highway_value(name)
                 bike_tags = bike_tags_map.get(self.local_id, dict())
                 layer_tags = self._layer_passage_from_z()
                 description = self._name_adjustments(highway)
@@ -141,12 +141,19 @@ class StreetTranslator(Translator):
 
         rlis_streets.close()
 
-    def _get_highway_value(self):
+    def _concatenate_name(self):
+        name_components = (
+            self.prefix, self.street_name, self.f_type, self.direction)
+        name = ' '.join([nc for nc in name_components if nc])
+
+        return name
+
+    def _get_highway_value(self, name):
         highway = self.HIGHWAY_MAP[self.type]
 
         # roads of class residential are named, if the type has indicated
         # residential, but there is no name downgrade to service
-        if highway == 'residential' and not self.name:
+        if highway == 'residential' and not name:
             highway = 'service'
 
         return highway
