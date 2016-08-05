@@ -1,130 +1,195 @@
+from collections import OrderedDict
+from os.path import basename, join
+
 import fiona
+from fiona.crs import from_epsg
 
-from rlis2osm.data import define_data_paths
-from rlis2osm.dissolve import OgrReader
+from rlis2osm.data import RlisPaths
+from rlis2osm.utils import zip_path
 
 
+class Translator(object):
+    OSM_KEYS = None
 
-class StreetTranslator(OgrReader):
-    osm_fields = {
-        'access': 'str',
-        'bicycle': 'str',
-        'bridge': 'str',
-        'cycleway': 'str',
-        'description': 'str',
-        'highway': 'str',
-        'layer': 'int',
-        'name': 'str',
-        'service': 'str',
-        'surface': 'str',
-        'tunnel': 'str',
-        'RLIS:bicycle': 'str'
+    def __init__(self, src_path, dst_dir):
+        self.src_path = src_path
+        self.dst_dir = dst_dir
+        self.dst_path = join(
+            dst_dir, 'translated_{}'.format(basename(src_path)))
+
+    def _translate_metadata(self, metadata):
+        """switch write format to geojson to avoid 10 character field
+        name limit of shapefiles
+        """
+
+        metadata['crs'] = from_epsg(2913)
+        metadata['driver'] = 'GeoJSON'
+        metadata['schema']['properties'] = self.OSM_KEYS
+
+        self.dst_path = self.dst_path.replace('.shp', '.geojson')
+
+        return metadata
+
+
+class StreetTranslator(Translator):
+    # type --> surface
+    SURFACE_MAP = {
+        2000: 'unpaved'
     }
 
-    # type --> access
-    access_map = {
+    # below are reverse mappings, these are less verbose in this format
+    # and are subsequently swapped into the form needed for lookups
+
+    RV_ACCESS_MAP = {
         'private': [1700, 1740, 1750, 1760, 1800, 1850],
         'no': [5402]
     }
+    # type --> access
+    ACCESS_MAP = {i: k for k, v in RV_ACCESS_MAP.items() for i in v}
 
-    # type --> service
-    service_map = {
+    RV_SERVICE_MAP = {
         'alley': [1600],
         'driveway': [1750, 1850]
     }
+    # type --> service
+    SERVICE_MAP = {i: k for k, v in RV_SERVICE_MAP.items() for i in v}
 
-    # type --> surface
-    surface_map = {
-        'unpaved': [2000]
+    RV_HIGHWAY_MAP = {
+        'motorway': [1110, 5101, 5201],
+        'motorway_link': [1120, 1121, 1122, 1123],
+        'primary': [1200, 1300, 5301],
+        'primary_link': [1221, 1222, 1223, 1321],
+        'secondary': [1400, 5401, 5451],
+        'secondary_link': [1421, 1471],
+        'tertiary': [1450, 5402, 5500, 5501],
+        'tertiary_link': [1521],
+        'residential': [1500, 1550, 1700, 1740, 2000, 8224],
+        'service': [1560, 1600, 1750, 1760, 1800, 1850],
+        'track': [9000]
     }
+    # type --> highway
+    HIGHWAY_MAP = {i: k for k, v in RV_HIGHWAY_MAP.items() for i in v}
 
-    reverse_highway_map = {
-            'motorway': [1110, 5101, 5201],
-            'motorway_link': [1120, 1121, 1122, 1123],
-            'primary': [1200, 1300, 5301],
-            'primary_link': [1221, 1222, 1223, 1321],
-            'secondary': [1400, 5401, 5451],
-            'secondary_link': [1421, 1471],
-            'tertiary': [1450, 5402, 5500, 5501],
-            'tertiary_link': [1521],
-            'residential': [1500, 1550, 1700, 1740, 2000, 8224],
-            'service': [1560, 1600, 1750, 1760, 1800, 1850],
-            'track': [9000]
-        }
+    OSM_KEYS = OrderedDict([
+        ('access', 'str'),
+        ('bicycle', 'str'),
+        ('bridge', 'str'),
+        ('cycleway', 'str'),
+        ('description', 'str'),
+        ('highway', 'str'),
+        ('layer', 'int'),
+        ('name', 'str'),
+        ('service', 'str'),
+        ('surface', 'str'),
+        ('tunnel', 'str'),
+        ('RLIS:bicycle', 'str')
+    ])
 
+    def __init__(self, src_path, dst_dir):
+        super(self.__class__, self).__init__(src_path, dst_dir)
+
+        # rlis streets fields
+        self.direction = None
+        self.f_type = None
+        self.fz_level = None
+        self.local_id = None
+        self.prefix = None
+        self.street_name = None
+        self.type = None
+        self.tz_level = None
 
     def translate_streets(self, bike_tags_map):
-        metadata = self.features.meta.copy()
+        rlis_streets = fiona.open(self.src_path)
 
-        with fiona.open(write_streets, 'w', **metadata):
-            for feat in self.features:
+        metadata = rlis_streets.meta.copy()
+        metadata = self._translate_metadata(metadata)
+
+        with fiona.open(self.dst_path, 'w', **metadata) as osm_streets:
+            for feat in rlis_streets:
                 tags = feat['properties']
-                local_id = tags['LOCALID']
-                name = tags['name']
-                type_ = tags['TYPE']
-                fz_level = tags['fz_level']
-                tz_level = tags['tz_level']
+                self.direction = tags['DIRECTION']
+                self.fz_level = tags['F_ZLEV']
+                self.local_id = tags['LOCALID']
+                self.prefix = tags['PREFIX']
+                self.street_name = tags['STREETNAME']
+                self.type = tags['TYPE']
+                self.tz_level = tags['T_ZLEV']
 
+                name = '{} {} {} {}'.format(self.prefix, self.street_name, self.f_type, self.direction).trim()
+                highway = self._get_highway_value()
+                bike_tags = bike_tags_map.get(self.local_id, dict())
+                layer_tags = self._layer_passage_from_z()
+                description = self._name_adjustments(highway)
 
-                bike_tags = bike_tags_map[local_id]
+                osm_tags = {
+                    'access': self.ACCESS_MAP.get(self.type),
+                    'bicycle': bike_tags.get('bicycle'),
+                    'bridge': layer_tags['bridge'],
+                    'cycleway': bike_tags.get('cycleway'),
+                    'description': description,
+                    'highway': highway,
+                    'layer': layer_tags['layer'],
+                    'name': self.name,
+                    'service': self.SERVICE_MAP.get(self.type),
+                    'surface': self.SURFACE_MAP.get(self.type),
+                    'tunnel': layer_tags['tunnel'],
+                    'RLIS:bicycle': bike_tags.get('rlis_bicycle'),
+                }
+                
+                feat['properties'] = osm_tags
+                osm_streets.write(feat)
 
-                highway = self._get_highway_value(type_, name)
+        rlis_streets.close()
 
-    def _get_highway_value(self, type_, name):
-        # highway --> type
-
-
-        # type --> highway (it's less verbose to store the dictionary as
-        # above and then reverse to the form needed for lookups)
-        highway_map = {i: k for k, v in reverse_highway_map for i in v}
-        highway = highway_map[type_]
+    def _get_highway_value(self):
+        highway = self.HIGHWAY_MAP[self.type]
 
         # roads of class residential are named, if the type has indicated
         # residential, but there is no name downgrade to service
-        if highway == 'residential' and not name:
+        if highway == 'residential' and not self.name:
             highway = 'service'
 
         return highway
 
-    def _get_layer_passage_from_z(self, fz_level, tz_level):
-
+    def _layer_passage_from_z(self):
         layer, bridge, tunnel = None, None, None
 
-        # coalesce layer values to one
-        fz_level = fz_level or 1
-        tz_level = tz_level or 1
-        max_z_level = max(fz_level, tz_level)
+        # layer values coalesced to 1 because in rlis z levels: NULL == 1
+        self.fz_level = self.fz_level or 1
+        self.tz_level = self.tz_level or 1
+        max_z_level = max(self.fz_level, self.tz_level)
 
-        # ground level is 1 for rlis, 0 for osm, rlis skips for 1 to -1 and
-        # does not use 0 as a value, in osm a way is assumed to have a layer
-        # of 0 unless otherwise indicated
-        if fz_level == tz_level:
-            if fz_level > 1:
-                layer = fz_level - 1
-            elif fz_level < 0:
-                layer = fz_level
+        # ground level is 1 for rlis, 0 for osm, rlis skips for 1 to -1
+        # and does not use 0 as a value, in osm a way is assumed to have
+        # a layer of 0 unless otherwise indicated
+        if self.fz_level == self.tz_level:
+            if self.fz_level > 1:
+                layer = self.fz_level - 1
+            elif self.fz_level < 0:
+                layer = self.fz_level
         elif max_z_level > 1:
             layer = max_z_level - 1
         elif max_z_level < 0:
-            layer = min(fz_level, tz_level)
+            layer = min(self.fz_level, self.tz_level)
 
         # if layer is not zero assume it is a bridge or tunnel
-        if layer > 0:
+        if not layer:
+            pass
+        elif layer > 0:
             bridge = 'yes'
         elif layer < 0:
             tunnel = 'yes'
 
-        return layer, bridge, tunnel
-
+        return dict(layer=layer, bridge=bridge, tunnel=tunnel)
 
     def _name_adjustments(self, highway):
         # motorway_link's have descriptions, not names, via osm convention
         description = None
         if highway == 'motorway_link':
-            description = highway
-            highway = None
+            description = self.name
+            self.name = None
 
-        return highway, description
+        return description
 
 
 # this may help in determining how to merge connected segments with
@@ -132,257 +197,282 @@ class StreetTranslator(OgrReader):
 # below: http://gis.stackexchange.com/questions/61474/
 
 
-class BikeTranslator(OgrReader):
+class BikeTranslator(Translator):
 
     def get_bike_tags(self):
         bike_tags = dict()
 
-        for feat in self.features:
-            tags = feat['properties']
-            bike_id = tags['BIKEID']
-            bike_infra = tags['BIKETYP'] or ''
-            bike_there = tags['BIKETHERE']
+        with fiona.open(**zip_path(self.src_path)) as routes:
+            for feat in routes:
+                tags = feat['properties']
+                bike_id = tags['BIKEID']
+                bike_infra = tags['BIKETYP'] or ''
+                bike_there = tags['BIKETHERE']
 
-            bicycle, cycleway, rlis_bicycle = None, None, None
+                bicycle, cycleway, rlis_bicycle = None, None, None
 
-            if not bike_infra and not bike_there:
-                continue
+                if not bike_infra and not bike_there:
+                    continue
 
-            if bike_infra in ('BKE-BLVD', 'BKE-SHRD'):
-                cycleway = 'shared_lane'
-            elif bike_infra in ('BKE-BUFF', 'BKE-LANE'):
-                cycleway = 'lane'
-            elif bike_infra == 'BKE-TRAK':
-                cycleway = 'track'
-            elif bike_infra == 'SHL-WIDE':
-                cycleway = 'shoulder'
-            # first condition covers 'OTH-CONN', 'OTH-SWLK', 'OTH-XING' values
-            elif 'OTH-' in bike_infra or bike_there in ('LT', 'MT', 'HT'):
-                bicycle = 'designated'
+                if bike_infra in ('BKE-BLVD', 'BKE-SHRD'):
+                    cycleway = 'shared_lane'
+                elif bike_infra in ('BKE-BUFF', 'BKE-LANE'):
+                    cycleway = 'lane'
+                elif bike_infra == 'BKE-TRAK':
+                    cycleway = 'track'
+                elif bike_infra == 'SHL-WIDE':
+                    cycleway = 'shoulder'
+                # covers 'OTH-CONN', 'OTH-SWLK', 'OTH-XING' values
+                elif 'OTH-' in bike_infra or bike_there in ('LT', 'MT', 'HT'):
+                    bicycle = 'designated'
 
-            if bike_there == 'CA':
-                rlis_bicycle = 'caution_area'
+                if bike_there == 'CA':
+                    rlis_bicycle = 'caution_area'
 
-            bike_tags[bike_id] = dict(
-                bicycle=bicycle,
-                cycleway=cycleway,
-                rlis_bicycle=rlis_bicycle
-            )
+                bike_tags[bike_id] = dict(
+                    bicycle=bicycle,
+                    cycleway=cycleway,
+                    rlis_bicycle=rlis_bicycle
+                )
 
-        return bike_tags
-
-
-
-
-
-
-
-
+            return bike_tags
 
 
 # rlis trails metadata:
 # http://rlisdiscovery.oregonmetro.gov/metadataviewer/display.cfm?meta_layer_id=2404
 
-# import fiona
-#
-# from rlis2osm.get_data import define_data_paths
+class TrailsTranslator(Translator):
 
-TRAILS = '/some/path/to/some/trails'
+    # mappings for simple conversions
+    ACCESS_MAP = {
+        'Restricted_Private': 'private',
+        'Unknown': 'unknown'
+    }
 
-# TODO rethink how mountain bike info is handled given that mtb is not a valid key
-osm_fields = {
-    'abandoned:highway': 'str',
-    'access': 'str',
-    'alt_name': 'str',
-    'bicycle': 'str',
-    'construction': 'str',
-    'est_width': 'float',
-    'fee': 'str',
-    'foot': 'str',
-    'highway': 'str',
-    'horse': 'str',
-    'name': 'str',
-    'operator': 'str',
-    'proposed': 'str',
-    'surface': 'str',
-    'wheelchair': 'str',
-    'RLIS:system_name': 'str'
-}
+    # status --> fee
+    FEE_MAP = {
+        'Open_Fee': 'yes'
+    }
 
-# mappings for simple conversions
-access_map = {
-    'Restricted_Private': 'private',
-    'Unknown': 'unknown'
-}
+    # trl_surface --> surface ('Stairs' and 'Water' are also valid values,
+    # but don't map to osm's surface)
+    SURFACE_MAP = {
+        'Chunk Wood': 'woodchips',
+        'Decking': 'wood',
+        'Hard Surface': 'paved',
+        'Imported Material': 'compacted',
+        'Native Material': 'ground',
+        'Snow': 'snow',
+        'Unknown': None
+    }
 
-# status --> fee
-fee_map = {
-    'Open_Fee': 'yes'
-}
+    # accessible --> wheelchair
+    WHEELCHAIR_MAP = {
+        'Accessible': 'yes',
+        'Not Accessible': 'no'
+    }
 
-# trl_surface --> surface ('Stairs' and 'Water' are also valid values,
-# but don't map to osm's surface)
-surface_map = {
-    'Chunk Wood': 'woodchips',
-    'Decking': 'wood',
-    'Hard Surface': 'paved',
-    'Imported Material': 'compacted',
-    'Native Material': 'ground',
-    'Snow': 'snow',
-    'Unknown': None
-}
+    # TODO rethink how mountain bike info is handled given that mtb is not a valid key
+    OSM_KEYS = OrderedDict([
+        ('abandoned:highway', 'str'),
+        ('access', 'str'),
+        ('alt_name', 'str'),
+        ('bicycle', 'str'),
+        ('construction', 'str'),
+        ('est_width', 'float'),
+        ('fee', 'str'),
+        ('foot', 'str'),
+        ('highway', 'str'),
+        ('horse', 'str'),
+        ('name', 'str'),
+        ('operator', 'str'),
+        ('proposed', 'str'),
+        ('surface', 'str'),
+        ('wheelchair', 'str'),
+        ('RLIS:system_name', 'str')
+    ])
 
-# accessible --> wheelchair
-wheelchair_map = {
-    'Accessible': 'yes',
-    'Not Accessible': 'no'
-}
+    def __init__(self, src_path, dst_dir):
+        super(self.__class__, self).__init__(src_path, dst_dir)
 
+        # rlis trail attributes
+        self.accessible = None
+        self.agency_name = None
+        self.equestrian = None
+        self.hike = None
+        self.mtn_bike = None
+        self.on_str_bike = None
+        self.road_bike = None
+        self.shared_name = None
+        self.status = None
+        self.system_name = None
+        self.trail_name = None
+        self.trl_surface = None
+        self.width = None
 
-def translate_trails(trails_path):
-    with fiona.open(trails_path) as rlis_trails:
+    def translate_trails(self):
+        rlis_trails = fiona.open(self.src_path)
+
         metadata = rlis_trails.meta.copy()
+        metadata = self._translate_metadata(metadata)
 
-        # switch output to geojson to support field name larger than 10
-        # characters
-        metadata['driver'] = ['GeoJSON']
-        metadata['schema']['properties'] = osm_fields
-
-        with fiona.open(write_path, 'w', **metadata) as osm_trails:
+        with fiona.open(self.dst_path, 'w', **metadata) as osm_trails:
             for feat in rlis_trails:
                 tags = feat['properties']
-                accessible = tags['ACCESSIBLE']
-                agency_name = tags['AGENCYNAME']
-                equestrian = tags['EQUESTRIAN']
-                hike = tags['HIKE']
-                mtn_bike = tags['MTNBIKE']
-                on_str_bike = tags['ONSTRBIKE']
-                road_bike = tags['ROADBIKE']
-                shared_name = tags['SHAREDNAME']
-                status = tags['STATUS']
-                system_name = tags['SYSTEMNAME']
-                trail_name = tags['TRAILNAME']
-                trl_surface = tags['TRLSUFACE']
-                width = tags['WIDTH']
+                self.accessible = tags['ACCESSIBLE']
+                self.agency_name = tags['AGENCYNAME']
+                self.equestrian = tags['EQUESTRIAN']
+                self.hike = tags['HIKE']
+                self.mtn_bike = tags['MTNBIKE']
+                self.on_str_bike = tags['ONSTRBIKE']
+                self.road_bike = tags['ROADBIKE']
+                self.shared_name = tags['SHAREDNAME']
+                self.status = tags['STATUS']
+                self.system_name = tags['SYSTEMNAME']
+                self.trail_name = tags['TRAILNAME']
+                self.trl_surface = tags['TRLSURFACE']
+                self.width = tags['WIDTH']
 
                 # remove segments meeting these criteria, on street bike
                 # segments exists in the streets data so aren't needed here
-                if on_str_bike == 'Yes' or status == 'Conceptual' or \
-                        trl_surface == 'Water':
+                if self.on_str_bike == 'Yes' \
+                        or self.status == 'Conceptual' \
+                        or self.trl_surface == 'Water':
                     continue
 
-                agency_name, shared_name, system_name =
+                self._name_adjustments()
 
                 # these osm tags are needed as part of the computation of
                 # other tags
-                est_width = get_est_width(width, 0.25)
-                highway, modes = get_mode_tags(
-                    est_width, equestrian, hike, mtn_bike, on_str_bike, road_bike)
+                est_width = self._get_est_width(0.25)
+                highway, mode_tags = self._get_mode_tags(est_width)
+                highway_tags = self._highway_adjustments(highway)
 
-                osm_tags = dict(
-                    # TODO need colon in this tag, so not sure if I can instantiate the dict this way
-                    abandoned_highway=None,
-                    access=access_map.get(status),
-                    alt_name=shared_name,
-                    bicyle=modes['bicycle'],
-                    construction=None,
-                    est_width=est_width,
-                    fee=fee_map.get(status),
-                    foot=modes['foot'],
-                    highway=highway,
-                    horse=modes['horse'],
-                    name=trail_name,
-                    operator=agency_name,
-                    proposed=None,
-                    surface=surface_map.get(trl_surface),
-                    wheelchair=wheelchair_map.get(accessible),
-                    rlis_systemname=system_name
-                )
-
-                # for certain status values the highway value should be
-                # moved to others keys
-                if status == 'Decommissioned':
-                    osm_tags['abandoned:highway'] = osm_tags['highway']
-                    osm_tags['highway'] = None
-                elif status == 'Planned':
-                    osm_tags['proposed'] = osm_tags['highway']
-                    osm_tags['highway'] = 'proposed'
-                elif status == 'Under construction':
-                    osm_tags['construction'] = osm_tags['highway']
-                    osm_tags['highway'] = 'construction'
+                osm_tags = {
+                    'abandoned:highway': highway_tags['abandoned'],
+                    'access': self.ACCESS_MAP.get(self.status),
+                    'alt_name': self.shared_name,
+                    'bicycle': mode_tags['bicycle'],
+                    'construction': highway_tags['construction'],
+                    'est_width': est_width,
+                    'fee': self.FEE_MAP.get(self.status),
+                    'foot': mode_tags['foot'],
+                    'highway': highway_tags['highway'],
+                    'horse': mode_tags['horse'],
+                    'name': self.trail_name,
+                    'operator': self.agency_name,
+                    'proposed': highway_tags['proposed'],
+                    'surface': self.SURFACE_MAP.get(self.trl_surface),
+                    'wheelchair': self.WHEELCHAIR_MAP.get(self.accessible),
+                    'RLIS:system_name': self.system_name
+                }
 
                 feat['properties'] = osm_tags
                 osm_trails.write(feat)
 
+        rlis_trails.close()
 
-def get_est_width(rlis_width, round_res):
-    est_width = None
-    plus_bonus = 1.25
-
-    # most rlis widths are in ranges, e.g. 6-9
-    if '-' in rlis_width:
-        min_, max_ = rlis_width.split('-')
-        est_width = (float(min_)+float(max_)) / 2
-    # some specify that they're at least a certain with, e.g. 15+
-    elif '+' in rlis_width:
-        est_width = float(rlis_width.replace('+', '')) * plus_bonus
-    elif rlis_width == 'Unknown':
+    def _get_est_width(self, resolution):
         est_width = None
+        plus_bonus = 1.25
 
-    # convert to meters and round to supplied unit
-    if est_width:
-        est_width = round(est_width * 0.3048, round_res) * round_res
+        if not self.width:
+            pass
+        # most rlis widths are in ranges, e.g. 6-9
+        elif '-' in self.width:
+            min_, max_ = self.width.split('-')
+            est_width = (float(min_)+float(max_)) / 2
+        # some specify that they're at least a certain with, e.g. 15+
+        elif '+' in self.width:
+            est_width = float(self.width.replace('+', '')) * plus_bonus
+        elif self.width == 'Unknown':
+            est_width = None
 
-    return est_width
+        # convert to meters and round to supplied unit
+        if est_width:
+            est_width = round(est_width * 0.3048 * resolution) / resolution
 
+        return est_width
 
-def get_mode_tags(
-        equestrian, est_width, hike, mtn_bike, road_bike, trl_surface):
-    """determine value for highway and mode access tags base on mode
-    permissions and trail width
-    """
+    def _get_mode_tags(self, est_width):
+        """determine value for highway and mode access tags base on mode
+        permissions and trail width
+        """
 
-    bicycle, foot, horse = None, None, None
-    path_conditions = [
-        equestrian == 'Yes',
-        hike == 'Yes',
-        mtn_bike == 'Yes',
-        road_bike == 'Yes' and est_width > 3
-    ]
+        bicycle, foot, horse = None, None, None
+        path_conditions = [
+            self.equestrian == 'Yes',
+            self.hike == 'Yes',
+            self.mtn_bike == 'Yes',
+            self.road_bike == 'Yes' and est_width > 3
+        ]
 
-    if trl_surface == 'Stairs':
-        highway = 'steps'
-    elif n_any(path_conditions, 2):
-        highway = 'path'
+        if self.trl_surface == 'Stairs':
+            highway = 'steps'
+        elif n_any(path_conditions, 2):
+            highway = 'path'
 
-        if equestrian == 'Yes':
-            horse = 'designated'
-        elif equestrian == 'No':
-            horse = 'no'
+            if self.equestrian == 'Yes':
+                horse = 'designated'
+            elif self.equestrian == 'No':
+                horse = 'no'
 
-        if hike:
-            foot = 'designated'
+            if self.hike:
+                foot = 'designated'
 
-        if road_bike or mtn_bike:
-            bicycle = 'designated'
-    elif road_bike == 'Yes':
-        highway = 'cycleway'
-    elif equestrian == 'Yes':
-        highway = 'bridleway'
-    else:
-        highway = 'footway'
+            if self.road_bike or self.mtn_bike:
+                bicycle = 'designated'
+        elif self.road_bike == 'Yes':
+            highway = 'cycleway'
+        elif self.equestrian == 'Yes':
+            highway = 'bridleway'
+        else:
+            highway = 'footway'
 
-        if road_bike:
-            bicycle = 'yes'
+            if self.road_bike:
+                bicycle = 'yes'
 
-    if hike == 'No':
-        foot = 'no'
+        if self.hike == 'No':
+            foot = 'no'
 
-    if (mtn_bike == 'No' and road_bike != 'Yes') or \
-            (road_bike == 'No' and mtn_bike != 'Yes'):
-        bicycle = 'no'
+        if (self.mtn_bike == 'No' and self.road_bike != 'Yes') or \
+                (self.road_bike == 'No' and self.mtn_bike != 'Yes'):
+            bicycle = 'no'
 
-    return highway, dict(bicycle=bicycle, foot=foot, horse=horse)
+        return highway, dict(bicycle=bicycle, foot=foot, horse=horse)
+
+    def _name_adjustments(self):
+        # name adjustments, no duplicate names
+        if self.shared_name == self.trail_name:
+            self.shared_name = None
+
+        if self.system_name in (self.trail_name, self.shared_name):
+            self.system_name = None
+
+        if self.agency_name == 'Unknown':
+            self.agency_name = None
+
+    def _highway_adjustments(self, highway):
+        # for certain status values the highway value should be
+        # moved to others keys
+
+        abandoned, construction, proposed = None, None, None
+        if self.status == 'Decommissioned':
+            abandoned = highway
+            highway = None
+        elif self.status == 'Planned':
+            proposed = highway
+            highway = 'proposed'
+        elif self.status == 'Under construction':
+            construction = highway
+            highway = 'construction'
+
+        return dict(
+            highway=highway,
+            abandoned=abandoned,
+            construction=construction,
+            proposed=proposed
+        )
 
 
 def n_any(iterable, n):
@@ -396,26 +486,16 @@ def n_any(iterable, n):
     return False
 
 
-def name_adjustments(agency_name, shared_name, system_name, trail_name):
-    # name adjustments, no duplicate names
-    if shared_name == trail_name:
-        shared_name = None
-
-    if system_name in (trail_name, shared_name):
-        system_name = None
-
-    if agency_name == 'Unknown':
-        agency_name = None
-
-    return agency_name, shared_name, system_name
-
-def highway_special_cases():
-    pass
-
 def main():
-    streets_path, trails_path, bikes_path = define_data_paths()
-    streets_trans = StreetTranslator(streets_path)
-    bike_trans = BikeTranslator(bikes_path)
+    paths = RlisPaths()
+
+    # streets_trans = StreetTranslator(paths.streets, paths.prj_dir)
+    # bike_trans = BikeTranslator(paths.bikes, paths.prj_dir)
+    # bike_tags = bike_trans.get_bike_tags()
+    # streets_trans.translate_streets(bike_tags)
+
+    trails_trans = TrailsTranslator(paths.trails, paths.prj_dir)
+    trails_trans.translate_trails()
 
 if __name__ == '__main__':
-    translate_trails(TRAILS)
+    main()

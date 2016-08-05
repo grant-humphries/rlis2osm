@@ -1,6 +1,7 @@
 import os
 import urllib2
 from datetime import datetime
+from inspect import getsourcefile
 from os.path import abspath, basename, dirname, exists, getmtime, isdir, \
     join, splitext
 from posixpath import join as urljoin
@@ -11,14 +12,15 @@ RLIS_TERMS = 'http://rlisdiscovery.oregonmetro.gov/view/terms.htm'
 
 class RlisPaths(object):
 
-    TRIMET_RLIS = '//gisstore/gis/Rlis/adghag'
+    TRIMET_RLIS = '//gisstore/gis/Rlis'
 
     STREETS = 'streets'
     TRAILS = 'trails'
     BIKES = 'bike_routes'
 
     def __init__(self, src_dir=None, dst_dir=None):
-        self.project_dir = join(dirname(dirname(abspath(__name__))), 'data')
+        self.prj_dir = join(
+            dirname(dirname(abspath(getsourcefile(lambda: 0)))), 'data')
         self.src_dir = self._get_source_dir(src_dir)
 
         feature_paths = self._get_source_paths()
@@ -27,8 +29,8 @@ class RlisPaths(object):
         self.bikes = feature_paths[self.BIKES]
         self.dst_dir = self._get_destination_dir(dst_dir)
 
-        if not exists(self.project_dir):
-            os.makedirs(self.project_dir)
+        if not exists(self.prj_dir):
+            os.makedirs(self.prj_dir)
 
         if not exists(self.dst_dir):
             os.makedirs(self.dst_dir)
@@ -39,7 +41,7 @@ class RlisPaths(object):
         elif exists(self.TRIMET_RLIS):
             src_dir = self.TRIMET_RLIS
         else:
-            src_dir = self.project_dir
+            src_dir = self.prj_dir
 
         return src_dir
 
@@ -57,18 +59,22 @@ class RlisPaths(object):
             trails = join(self.src_dir, '{}.zip'.format(self.TRAILS))
             bikes = join(self.src_dir, '{}.zip'.format(self.BIKES))
 
-        return dict(streets=streets, trails=trails, bikes=bikes)
+        return {
+            self.STREETS: streets,
+            self.TRAILS: trails,
+            self.BIKES: bikes
+        }
 
     def _get_destination_dir(self, dst_dir):
         if dst_dir:
             pass
         elif self.src_dir == self.TRIMET_RLIS:
             mod_time = datetime.fromtimestamp(getmtime(self.streets))
-            # TODO this path isn't fully correct need to look at TriMet directory structure
-            dst_dir = join(basename(self.TRIMET_RLIS), 'PUBLIC',
-                           'OpenStreetMap', 'RLIS', mod_time.strftime('%Y_%m'))
+            dst_dir = join(
+                dirname(self.TRIMET_RLIS), 'PUBLIC', 'OpenStreetMap',
+                'RLIS', 'RLIS_osm_data', mod_time.strftime('%Y_%m'))
         else:
-            dst_dir = self.project_dir
+            dst_dir = self.prj_dir
 
         return dst_dir
 
@@ -86,7 +92,7 @@ class RlisPaths(object):
         return rlis_map
 
 
-def download_rlis(paths, refresh=False):
+def download_rlis(paths, refresh):
     accepted_terms = False
 
     for ds in (paths.streets, paths.trails, paths.bikes):
@@ -143,10 +149,15 @@ def download_with_progress(url, write_dir):
     return file_path
 
 
-def main():
-    rlis_paths = RlisPaths()
-    if rlis_paths.src_dir == RlisPaths.TRIMET_RLIS:
-        download_rlis(rlis_paths)
+def main(refresh=False):
+    paths = RlisPaths()
+    print paths.prj_dir
+    exit()
+
+    # do not download/refresh data if user has supplied a source path
+    # or if working in TriMet environment
+    if paths.src_dir == paths.prj_dir:
+        download_rlis(paths, refresh)
 
 
 if __name__ == '__main__':

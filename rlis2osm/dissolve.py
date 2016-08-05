@@ -1,7 +1,5 @@
 import logging
-from argparse import ArgumentParser
 from collections import defaultdict
-from os.path import abspath, basename, dirname, join
 from sys import stdout
 from time import time
 
@@ -9,35 +7,32 @@ import fiona
 from shapely.geometry import mapping, shape
 from shapely.ops import unary_union
 
-from rlis2osm.data import define_data_paths
+from rlis2osm.data import RlisPaths
 
 start_time = time()
 
 
 class WayDissolver(object):
 
-    def __init__(self, path, fields=None, field_exclude=False):
-        self.path = path
-        self.ways =
+    def __init__(self, src_path, dst_dir, fields=None, field_exclude=False):
+        self.src_path = src_path
+        self.dst_dir = dst_dir
+        self.dst_path = None
         self.fields = self._define_filter_fields(fields, field_exclude)
 
-    def dissolve_ways(self, write_path=None):
-        if not write_path:
-            write_path = join(
-                dirname(abspath(__name__)), 'data', 'dissolve_{}.shp'.format(
-                    basename(self.path).split('.')[0]))
-
+    def dissolve_ways(self):
         way_groups = self._determine_way_groups()
 
-        metadata = self.features.meta.copy()
+        ways = fiona.open(self.src_path)
+        metadata = ways.meta.copy()
         meta_fields = metadata['schema']['properties']
         self._filter_tags(meta_fields)
 
-        with fiona.open(write_path, 'w', **metadata) as dissolve_shp:
+        with fiona.open(self.dst_path, 'w', **metadata) as dissolve_shp:
             for group in way_groups:
                 geom_list = list()
                 for way_id in group:
-                    feat = self.features[way_id]
+                    feat = ways[way_id]
                     geom = shape(feat['geometry'])
                     geom_list.append(geom)
 
@@ -47,6 +42,8 @@ class WayDissolver(object):
                     geometry=mapping(dissolve_geom),
                     properties=dissolve_tags
                 ))
+
+        ways.close()
 
     def _determine_way_groups(self):
         node_way_map, way_nodes = self._map_end_pts_to_ways()
@@ -58,7 +55,8 @@ class WayDissolver(object):
         # be done on this collection and it reaches a large size
         assigned = LogSet()
         way_groups = list()
-        for fid, feat in self.features.items():
+        ways = fiona.open(self.src_path)
+        for fid, feat in ways.items():
             if fid in assigned:
                 continue
 
@@ -75,7 +73,7 @@ class WayDissolver(object):
                     if connect_id in assigned:
                         continue
 
-                    connect_way = self.features[connect_id]
+                    connect_way = ways[connect_id]
                     connect_tags = self._filter_tags(connect_way['properties'])
 
                     if tags == connect_tags:
@@ -86,7 +84,10 @@ class WayDissolver(object):
                         for cn in connect_nodes:
                             if cn != n and cn not in nodes:
                                 nodes.append(cn)
+
             way_groups.append(group)
+
+        ways.close()
         return way_groups
 
     def _define_filter_fields(self, filter_fields, exclude):
@@ -94,7 +95,8 @@ class WayDissolver(object):
         the fields that must match for a merge to be allowed
         """
 
-        fields = self.features[0]['properties'].keys()
+        ways = fiona.open(self.src_path)
+        fields = ways[0]['properties'].keys()
         if filter_fields:
             for ff in filter_fields:
                 if ff not in fields:
@@ -108,6 +110,7 @@ class WayDissolver(object):
             else:
                 fields = filter_fields
 
+        ways.close()
         return fields
 
     def _map_end_pts_to_ways(self):
@@ -116,7 +119,8 @@ class WayDissolver(object):
         node_way_map = defaultdict(list)
         way_nodes = dict()
 
-        for fid, feat in self.features.items():
+        ways = fiona.open(self.src_path)
+        for fid, feat in ways.items():
             geom = shape(feat['geometry'])
             coords = list(geom.coords)
             f_node = coords[0]
@@ -135,6 +139,7 @@ class WayDissolver(object):
                 't': node_id_map[t_node]
             }
 
+        ways.close()
         return node_way_map, way_nodes
 
     def _filter_tags(self, tags):
@@ -171,24 +176,10 @@ class LogSet(set):
             stdout.flush()
 
 
-def process_options():
-    parser = ArgumentParser()
-    parser.add_argument(
-        '-d', '--data_path',
-        default=join(dirname(abspath(__name__)), 'data'),
-        help='file path at which datasets will be downloaded and written to'
-    )
-    parser.add_argument()
-
-
 def main():
-    street_fields = [
-        'DIRECTION', 'FTYPE', 'F_ZLEV', 'PREFIX',
-        'STREETNAME', 'TYPE', 'T_ZLEV']
-    streets, trails = define_data_paths(refresh=False)
-    dissolver = WayDissolver(streets, street_fields)
+    paths = RlisPaths()
+    dissolver = WayDissolver(paths.streets, paths.prj_dir)
     dissolver.dissolve_ways()
-    dissolver.close_features()
 
 
 if __name__ == '__main__':
