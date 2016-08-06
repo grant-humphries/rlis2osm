@@ -108,6 +108,7 @@ class StreetTranslator(Translator):
             for feat in rlis_streets:
                 tags = feat['properties']
                 self.direction = tags['DIRECTION']
+                self.f_type = tags['FTYPE']
                 self.fz_level = tags['F_ZLEV']
                 self.local_id = tags['LOCALID']
                 self.prefix = tags['PREFIX']

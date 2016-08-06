@@ -1,3 +1,4 @@
+import fiona
 from titlecase import titlecase
 
 
@@ -5,13 +6,42 @@ class StreetNameExpander(object):
     def __init__(self, parsed=False):
         pass
 
+    def expand_abbreviations(self):
+        with fiona.open() as streets:
+            for feat in streets:
+                tags = feat['properties']
+                prefix = tags['PREFIX']
+                street_name = tags['STREETNAME']
+                f_type = tags['FTYPE']
+                direction = tags['DIRECTION']
+
+                # some street names are composed like this:
+                # 'SW 5TH AVE-SW MORRISON ST', so first break them into parts
+                part_list = list()
+                parts = street_name.split('-')
+                for p in parts:
+                    word_list = list()
+                    words = p.split()
+                    num_words = len(words)
+                    for i, w in enumerate(words, 1):
+                        if i == num_words:
+                            w = self.TYPE_MAP.get(w, w)
+                        else:
+                            w = self.TYPE_MAP.get(w, w)
+                        word_list.append(w)
+                    part_list.append(word_list)
+
+                expanded_name = '-'.join([' '.join(p) for p in part_list])
+
+
+
     def _get_fix_mapping(self):
         pass
 
     def _get_type_mapping(self):
         pass
 
-    direction_map = {
+    DIRECTION_MAP = {
         'E': 'East',
         'EB': 'Eastbound',
         'N': 'North',
@@ -25,11 +55,13 @@ class StreetNameExpander(object):
         'W': 'West',
         'WB': 'Westbound'
     }
-    type_map = {
+
+    # these will appear as the end of the street name only
+    TYPE_MAP = {
         'ALY': 'Alley',
-        'AVE': 'Avenue',
+        ['AV', 'AVE']: 'Avenue',
         'BLVD': 'Boulevard',
-        'BRG': 'Bridge',
+        ['BR', 'BRG']: 'Bridge',
         'BYP': 'Bypass',
         'CIR': 'Circle',
         'CORR': 'Corridor',
@@ -39,9 +71,7 @@ class StreetNameExpander(object):
         'EXPY': 'Expressway',
         'EXT': 'Extension',
         'FRTG': 'Frontage Road',
-        'FWY': 'Freeway',
         'HTS': 'Heights',
-        'HWY': 'Highway',
         'LN': 'Lane',
         'LNDG': 'Landing',
         'PKWY': 'Parkway',
@@ -59,16 +89,20 @@ class StreetNameExpander(object):
         'VW': 'View'
     }
 
-    misc_map = {
-        'BRG': 'Bridge',
+    # these can appear anywhere in the street name
+    TYPE_FLOAT_MAP = {
+        'FWY': 'Freeway',
+        'HWY': 'Highway'
+    }
+
+    MISC_MAP = {
+        'FT': 'Foot',
         'HOSP': 'Hospital',
         'HWY': 'Highway',  # hwy can appear at any point in basename (note that is in type dict as well
         'MT': 'Mount',  # 'saint' is usually at the beginning of a name, but not in the case of 'mount saint' and 'old saint'
         'TC': 'Transit Center',
         'ST': 'Saint',  # not be confused with street
-        'US': 'United States',
-
-
+        'US': 'United States'
     }
 
 # TODO: handle streets with STREETNAME 'UNNAMED'
@@ -80,16 +114,7 @@ titlecase(name)
 # STREETS SPECIAL CASE EXPANSIONS
 
 # 3) Expand abbreviations that are within the street basename
-'(\s)Av[e]?(-|\s|$)', '\1Avenue\2',
-'(\s)Blvd(-|\s|$)', '\1Boulevard\2 '
-'(\s)Br[g]?(-|\s|$)', '\1Bridge\2 '
-'(\s)Ct(-|\s|$)', '\1Court\2 '
-'(\s)Dr(-|\s|$)', '\1Drive\2 '
-'(^|\s|-)Fwy(-|\s|$)', '\1Freeway\2 '
-'(^|\s|-)Hwy(-|\s|$)', '\1Highway\2 '
-'(\s)Pkwy(-|\s|$)', '\1Parkway\2 '
-'(\s)Pl(-|\s|$)', '\1Place\2'
-'(\s)Rd(-|\s|$)', '\1Road\2 '
+
 # St > Street (will not occur at beginning of a st_name)
 '(\s)St(-|\s|$)', '\1Street\2 '
 
