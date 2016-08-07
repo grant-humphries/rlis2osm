@@ -143,6 +143,8 @@ class StreetTranslator(Translator):
         rlis_streets.close()
 
     def _concatenate_name(self):
+
+        # TODO if streetn_name is null make full name null
         name_components = (
             self.prefix, self.street_name, self.f_type, self.direction)
         name = ' '.join([nc for nc in name_components if nc])
