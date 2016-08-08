@@ -1,7 +1,7 @@
 from os.path import basename, join
 
 import fiona
-from titlecase import titlecase
+from titlecase import set_small_word_list, titlecase, SMALL
 
 from rlis2osm.data import RlisPaths
 from rlis2osm.utils import zip_path
@@ -91,6 +91,7 @@ class StreetNameExpander(object):
     def __init__(self, src_path, dst_dir, parsed=False):
         self.src_path = src_path
         self.dst_path = join(dst_dir, 'expanded_{}'.format(basename(src_path)))
+        self.tcase_callback = customize_titlecase()
 
     def expand_abbreviations(self):
         streets = fiona.open(**zip_path(self.src_path))
@@ -147,7 +148,7 @@ class StreetNameExpander(object):
         # the title case module seems to only work when starting from
         # lowercase
         expanded_name = '-'.join([' '.join(p) for p in part_list])
-        return titlecase(expanded_name.lower())
+        return titlecase(expanded_name.lower(), callback=self.tcase_callback)
 
     def _get_fix_mapping(self):
         pass
@@ -165,19 +166,28 @@ def merge_dicts(*dict_args):
     return master_dict
 
 
-def number_after_letter(word, **kwargs):
-    # even though the kwargs aren't used here they are a requirement of
-    # any function supplied to titlecase as a callback
+def customize_titlecase():
 
-    if word[0].isdigit() and word[-1].isalpha():
-        # cases like 45th
-        if word[-2].isalpha():
-            word.lower()
-        # cases like 99W
-        else:
-            word.upper()
+    # don't lowercase 'v', do lowercase 'with'
+    small = SMALL.replace('|v\.?|', '|')
+    small = '{}|with'.format(small)
+    set_small_word_list(small)
 
-    return word
+    def number_after_letter(word, **kwargs):
+        # even though the kwargs aren't used here they are a requirement of
+        # any function supplied to titlecase as a callback
+
+        if word[0].isdigit() and word[-1].isalpha():
+            # cases like 45th
+            if word[-2].isalpha():
+                word.lower()
+            # cases like 99W
+            else:
+                word.upper()
+
+        return word
+
+    return number_after_letter
 
 
 # TODO: handle streets with STREETNAME 'UNNAMED'
