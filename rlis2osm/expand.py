@@ -1,5 +1,10 @@
+from os.path import basename, join
+
 import fiona
 from titlecase import titlecase
+
+from rlis2osm.data import RlisPaths
+from rlis2osm.utils import zip_path
 
 
 class StreetNameExpander(object):
@@ -30,6 +35,7 @@ class StreetNameExpander(object):
         'MED': 'Medical',
         'JQ': 'John Quincy',  # Adams
         'JR': 'Junior',
+        'MTN': 'Mountain',
         'NFD': 'Nation Forest Development Road',
         'PCC': 'Portland Community College',
         'TC': 'Transit Center',
@@ -75,39 +81,48 @@ class StreetNameExpander(object):
 
     NOT_END = {
         'MT': 'Mount',  # maps to 'Mountain' at end
-        'ST': 'Saint',  # not be confused with street
+        'ST': 'Saint',  # this should override ST --> Street in some cases
     }
 
     END_ONLY = {
         'MT': 'Mountain'
     }
 
-    def __init__(self, parsed=False):
-        pass
+    def __init__(self, src_path, dst_dir, parsed=False):
+        self.src_path = src_path
+        self.dst_path = join(dst_dir, 'expanded_{}'.format(basename(src_path)))
 
     def expand_abbreviations(self):
-        streets = fiona.open()
+        streets = fiona.open(**zip_path(self.src_path))
+        metadata = streets.meta.copy()
 
-        with fiona.open(, 'w', **metadata) as expanded_streets:
+        direction_map = merge_dicts(self.SINGLE_DIR_MAP, self.COMBO_DIR_MAP)
+        front_map = merge_dicts(
+            direction_map, self.BASENAME_MAP, self.SUFFIX_MAP, self.NOT_END)
+        middle_map = merge_dicts(
+            self.COMBO_DIR_MAP, self.BASENAME_MAP, self.SUFFIX_MAP, self.NOT_END)
+        back_map = merge_dicts(
+            direction_map, self.BASENAME_MAP, self.SUFFIX_MAP, self.END_ONLY)
+
+        with fiona.open(self.dst_path, 'w', **metadata) as expanded_streets:
             for feat in streets:
                 tags = feat['properties']
                 prefix = tags['PREFIX']
-                street_name = tags['STREETNAME']
-                f_type = tags['FTYPE']
+                street_name = tags['STREETNAME'] or ''
+                f_type = tags['FTYPE'] or ''
                 direction = tags['DIRECTION']
 
-                tags['PREFIX'] = self.DIRECTION_MAP.get(prefix, prefix)
-                tags['STREETNAME'] = self._expand_basename(street_name)
-                tags['FTYPE'] = self.SUFFIX_MAP.get(f_type, f_type)
-                tags['DIRECTION'] = self.DIRECTION_MAP.get(
-                    direction, direction)
+                tags['PREFIX'] = direction_map.get(prefix, prefix)
+                tags['STREETNAME'] = self._expand_basename(
+                    street_name, front_map, middle_map, back_map)
+                tags['FTYPE'] = self.SUFFIX_MAP.get(f_type, f_type).title()
+                tags['DIRECTION'] = direction_map.get(direction, direction)
 
                 expanded_streets.write(feat)
 
         streets.close()
 
-
-    def _expand_basename(self, street_name):
+    def _expand_basename(self, street_name, front, middle, back):
         # some street names are composed like this:
         # 'SW 5TH AVE-SW MORRISON ST', so first break them into parts
         part_list = list()
@@ -117,21 +132,22 @@ class StreetNameExpander(object):
             words = p.split()
             num_words = len(words)
             for i, w in enumerate(words, 1):
-                if num_words != 1:
-                    # first word
-                    if i == 1:
-                        pass
-                    # last word
-                    elif i == num_words:
-                        w = self.TYPE_MAP.get(w, w)
-                # middle words
+                # first word
+                if i == 1 and num_words > 1:
+                    w = front.get(w, w)
+                # last word
+                elif i == num_words and num_words > 1:
+                    w = back.get(w, w)
+                # middle word(s)
                 else:
-                    w = self.TYPE_MAP.get(w, w)
+                    w = middle.get(w, w)
                 word_list.append(w)
             part_list.append(word_list)
 
+        # the title case module seems to only work when starting from
+        # lowercase
         expanded_name = '-'.join([' '.join(p) for p in part_list])
-        return expanded_name
+        return titlecase(expanded_name.lower())
 
     def _get_fix_mapping(self):
         pass
@@ -154,13 +170,18 @@ def merge_dicts(*dict_args):
 # # STREETS SPECIAL CASE EXPANSIONS
 # 'FT OF N HOLLADAY'
 # 'US GRANT'
+# 'A v DAVIS'
+# 99w
+
 # # special case grammar fixes and name expansions
 # if '.*(^|\s|-)O(brien|day|neal|neil[l]?)(-|\s|$).*':
 #     '(^|\s|-)O(brien|day|neal|neil[l]?)(-|\s|$)', '\1O''\2\3'
 
 
 def main():
-    pass
+    paths = RlisPaths()
+    street_expander = StreetNameExpander(paths.streets, paths.prj_dir)
+    street_expander.expand_abbreviations()
 
 
 if __name__ == '__main__':
@@ -253,7 +274,7 @@ if __name__ == '__main__':
 # '(^|\s|-)Mt(-|\s|$)', '\1Mount\2'
 # '(^|\s|-)Sw(\s)', '\1Southwest\2'
 # '(^|\s|-)Wes(-|\s|$)', '\1Westside Express Service\2'
-# '(^|\s|-)Thprd(-|\s|$)', '\1Tualatin Hills Park & Recreation District\2'
+# 'THPRD': 'Tualatin Hills Park & Recreation District'
 #
 # # special cases, use index and match full name
 # 'TVWD Water Treatment Plant Trails', 'Tualatin Valley Water District Water Treatment Plant Trails'
@@ -282,7 +303,7 @@ if __name__ == '__main__':
 # # expand other abbreviations
 # '(\s)Assn(-|\s|$)', '\1Association\2'
 # '(\s)Es[l]?(-|\s|$)', '\1Elementary School\2'
-# '(\s)Hoa(-|\s|$)', '\1Homeowners Association\2'
+# '(\s)HOA(-|\s|$)', '\1Homeowners Association\2'
 # '(\s)Hmwrs(\s)', '\1Homeowners\2'
 # '(^|\s|-)Max(-|\s|$)', '\1Metropolitan Area Express\2'
 # '(\s)Ms(-|\s|$)', '\1Middle School\2'
