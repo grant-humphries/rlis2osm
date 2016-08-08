@@ -164,6 +164,22 @@ def merge_dicts(*dict_args):
 
     return master_dict
 
+
+def number_after_letter(word, **kwargs):
+    # even though the kwargs aren't used here they are a requirement of
+    # any function supplied to titlecase as a callback
+
+    if word[0].isdigit() and word[-1].isalpha():
+        # cases like 45th
+        if word[-2].isalpha():
+            word.lower()
+        # cases like 99W
+        else:
+            word.upper()
+
+    return word
+
+
 # TODO: handle streets with STREETNAME 'UNNAMED'
 
 

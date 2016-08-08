@@ -422,6 +422,8 @@ class TrailsTranslator(Translator):
         elif n_any(path_conditions, 2):
             highway = 'path'
 
+            # horse=no is on everything except path and bridleway,
+            # that's not the case for foot and bike
             if self.equestrian == 'Yes':
                 horse = 'designated'
             elif self.equestrian == 'No':
