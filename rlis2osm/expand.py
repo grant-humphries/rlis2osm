@@ -27,19 +27,24 @@ class StreetNameExpander(object):
     }
 
     BASENAME_MAP = {
-        'BPA': 'Bonneville Power Administration',
         'CC': 'Community College',
         'CO': 'County',
         'FT': 'Foot',
         'HOSP': 'Hospital',
         'MED': 'Medical',
-        'JQ': 'John Quincy',  # Adams
         'JR': 'Junior',
         'MTN': 'Mountain',
         'NFD': 'Nation Forest Development Road',
-        'PCC': 'Portland Community College',
         'TC': 'Transit Center',
-        'US': 'United States'  # there is a US Grant which is Ulysses S
+        'US': 'United States'  # there is a 'US Grant' which is Ulysses S
+    }
+
+    street_special_case = {
+        'basename': {
+            'BPA': 'Bonneville Power Administration',
+            'JQ': 'John Quincy',  # Adams
+            'PCC': 'Portland Community College',
+        }
     }
 
     # these will appear as the end of the street name only
@@ -74,6 +79,7 @@ class StreetNameExpander(object):
         'SQ': 'Square',
         'ST': 'Street',
         'TER': 'Terrace',
+        'TERR': 'Terrace',
         'TRL': 'Trail',
         'VIA': 'Viaduct',
         'VW': 'View',
@@ -225,99 +231,75 @@ def main():
 if __name__ == '__main__':
     main()
 
-trails_special_cases = {
 
-}
+# TRAILS SPECIAL CASE EXPANSIONS
 
-# # TRAILS SPECIAL CASE EXPANSIONS
-#
-# # trail fields that need expansion, titlecasing
-# # trailname
-# # sharedname
-# # systemname
-# # agencyname
-#
-# # a) 'name' (aka trailname)
-# # remove any periods (.) in trailname (do this for all name fields in trails)
+# trail fields that need expansion, titlecasing
+# trailname
+# sharedname
+# systemname
+# agencyname
+
+# a) 'name' (aka trailname)
+# remove any periods (.) in trailname (do this for all name fields in trails)
 # name.replace('.', '')
 
-# # expand street types in trailname (the ones left are special cases)
+# pre and post separators are special cases (mainly '/')
 # '(\s|/)Ct(-|\s|$)', '\1Court\2'
 # '(\s)Dr(-|\s|$|/)', '\1Drive\2'
-# '(\s)Ter[r]?(-|\s|$)', '\1Terrace\2'
 
-# # expand other abbreviations in trailname
-# '(\s)Assn(-|\s|$)', '\1Association\2'
-'BPA', 'Bonneville Power Administration'
-# '(\s)Jr(-|\s|$)', '\1Junior\2'
-'PED': 'Pedestrian'
-# '(^|\s|-)Us(\s)', '\1United States\2'
-'VA': 'Veteran Affairs'
-
-# # special cases, since these are not common an index is being added to 'name' field
-# # and matches are being made on the full value to increase speed
-'BES': 'Bureau of Environmental Services'  # 'Bes Water Quality Control Lab Trail'
-'ROW': 'Right of Way'  # 'Fanno Creek Trail at Oregon Electric ROW', issue with row type?
-'CC': 'Community Center'  # 'Fulton Cc Driveway', issue with community college?
-'CC': 'Community College'  # 'Mount Hood Cc Driveway - Kane Drive Connector'
-
-# # unknown abbreviation, switch back to caps
-# 'Cat Road (Retired)', 'CAT Road (Retired)'
-# 'Faof Canberra Trail', 'FAOF Canberra Trail'
-# 'Tbbv Path', 'TBBV Path'
-#
-# # b) 'alt_name' (aka sharedname)
-#
-# # expand abbreviations
-'WES': 'Westside Express Service'
-#
-# # c) 'r_sysname' (aka systemname)
-
-# # expand other abbreviations
+# general (united states)
 'ASSN': 'Association'
+'CC': 'Community Center'  # 'Fulton Cc Driveway', problem \|/
+'CC': 'Community College'  # 'Mount Hood Cc Driveway - Kane Drive Connector', problem ^
 'ES': 'Elementary School'  # not at start
 'ESL': 'Elementary School'  # not at start
 'HOA': 'Homeowners Association'
 'HMWRS': 'Homeowners'
+'LDS': 'Latter Day Saints'  # 'Lds Trails'
+'LLC': 'Limited Liability Company' # 'Orenco Gardens Llc Park Trails'
 'MS': 'Middle School'  # not at start
+'NO': 'Number'  # 'Pacific Grove No 4 Homeowners Association Trails'
+'PED': 'Pedestrian'
+'ROW': 'Right of Way'  # 'Fanno Creek Trail at Oregon Electric ROW', issue with type: Row?
 'RR': 'Railroad'  # not at start
+'VA': 'Veteran Affairs'
 
-'MAX': 'Metropolitan Area Express'
-
-# # special case expansions
+# names
 'AM': 'Archibald M' # 'AM Kennedy Park Trails'
 'HM': 'Howard M'  # 'HM Terpenning Recreation Complex Trails - Connector'
 'UJ': 'Ulin J'  # 'Uj Hamby Park Trails'
 
-
-'LDS': 'Latter Day Saints'  # 'Lds Trails'
-'LLC': 'Limited Liability Company' # 'Orenco Gardens Llc Park Trails'
-'NO': 'Number'  # 'Pacific Grove No 4 Homeowners Association Trails',
-'PKW': 'Peterkort Woods'  # 'Renaissance at Pkw Homeowners Trails'
-'SWC': 'Southwest Corridor'  # 'Proposed Regional Swc Connector'
-
-
+# regional
+'BES': 'Bureau of Environmental Services'  # 'Bes Water Quality Control Lab Trail'
+'BPA': 'Bonneville Power Administration'
+'MAX': 'Metropolitan Area Express'
 'PCC': 'Portland Community College'
+'PKW': 'Peterkort Woods'  # 'Renaissance at Pkw Homeowners Trails'
 'PSU': 'Portland State University'
+'SWC': 'Southwest Corridor'  # 'Proposed Regional Swc Connector'
 'THPRD': 'Tualatin Hills Park & Recreation District'
 'TVWD': 'Tualatin Valley Water District'  # 'Tvwd Water Treatment Plant Trails'
+'WES': 'Westside Express Service'
 'WSU': 'Washington State University'  # 'Wsu Campus Trails'
 
-# # unknown abbreviation, switch back to caps
+# Unknown Abbreviation, switch back to caps
+# SYSTEMNAME
 # 'Pbh Inc Trails', 'PBH Incorporated Trails'
-#
+# TRAILNAME
+# 'Cat Road (Retired)', 'CAT Road (Retired)'
+# 'Faof Canberra Trail', 'FAOF Canberra Trail'
+# 'Tbbv Path', 'TBBV Path'
 
-# # d) 'operator' (aka agencyname)
-#
-# # grammar fixes, this might able to be handled by the titlecase module
+# Grammar Fixes, this might able to be handled by the titlecase module
+# AGENCYNAME
 # '(^|\s|-)Trimet(-|\s|$)', '\1TriMet\2'
 
 # Typo Fixes - these should be reported to Metro
 # SYSTEMNAME
-# 'Chiefain Dakota Greenway Trails', 'Chieftain Dakota Greenway Trails'
-# 'Tanasbource Villas Trail', 'Tanasbourne Villas Trail'
-# 'Southwest Portland Wilamette Greenway Trail', 'Southwest Portland Willamette Greenway Trail'
+# 'Chiefain Dakota Greenway Trails', 'Chieftain'
+# 'Tanasbource Villas Trail', 'Tanasbourne'
+# 'Southwest Portland Wilamette Greenway Trail', 'Willamette'
 # TRAILNAME
-# 'Andrea Street - Mo Ccasin Connector', 'Andrea Street - Moccasin Connector'
-# 'West Unioin Road - 151st Place Connector', 'West Union Road - 151st Place Connector'
-#
+# 'Andrea Street - Mo Ccasin Connector', 'Moccasin'
+# 'West Unioin Road - 151st Place Connector', 'Union'
