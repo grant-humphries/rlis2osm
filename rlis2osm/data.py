@@ -155,8 +155,6 @@ def download_with_progress(url, write_dir):
 
 def main(refresh=False):
     paths = RlisPaths()
-    print paths.prj_dir
-    exit()
 
     # do not download/refresh data if user has supplied a source path
     # or if working in TriMet environment
