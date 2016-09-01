@@ -76,7 +76,8 @@ class StreetNameExpander(object):
         'TER': 'Terrace',
         'TRL': 'Trail',
         'VIA': 'Viaduct',
-        'VW': 'View'
+        'VW': 'View',
+        'WY': 'Way'
     }
 
     NOT_END = {
@@ -239,88 +240,39 @@ trails_special_cases = {
 # # a) 'name' (aka trailname)
 # # remove any periods (.) in trailname (do this for all name fields in trails)
 # name.replace('.', '')
-#
-# # expand street prefixes in trailname
-# '(^|-\s|-)N(\s)', '\1North\2',
-# '(^|\s|-)Ne(\s)', '\1Northeast\2'
-# '(^|-\s|-)E(\s)', '\1East\2'
-# '(^|\s|-)Se(\s)', '\1Southeast\2'
-# '(^|-\s|-)S(\s)', '\1South\2'
-# '(^|\s|-)Sw(\s)', '\1Southwest\2'
-# '(^|-\s|-)W(\s)', '\1West\2'
-# '(^|\s|-)Nw(\s)', '\1Northwest\2'
-# '(^|\s|-)Nb(-|\s|$)', '\1Northbound\2'
-# '(^|\s|-)Eb(-|\s|$)', '\1Eastbound\2'
-# '(^|\s|-)Sb(-|\s|$)', '\1Southbound\2'
-# '(^|\s|-)Wb(-|\s|$)', '\1Westbound\2',
-#
-# # expand street types in trailname
-# '(\s)Ave(-|\s|$)', '\1Avenue\2'
-# '(\s)Blvd(-|\s|$)', '\1Boulevard\2'
-# '(\s)Cir(-|\s|$)', '\1Circle\2'
+
+# # expand street types in trailname (the ones left are special cases)
 # '(\s|/)Ct(-|\s|$)', '\1Court\2'
 # '(\s)Dr(-|\s|$|/)', '\1Drive\2'
-# '(^|\s|-)Hwy(-|\s|$)', '\1Highway\2'
-# '(\s)Ln(-|\s|$)', '\1Lane\2'
-# '(\s)Lp(-|\s|$)', '\1Loop\2'
-# '(\s)Pkwy(-|\s|$)', '\1Parkway\2'
-# '(\s)Pl(-|\s|$)', '\1Place\2'
-# '(\s)Rd(-|\s|$)', '\1Road\2'
-# '(\s)Sq(-|\s|$)', '\1Square\2'
-# '(\s)St(-|\s|$)', '\1Street\2'
 # '(\s)Ter[r]?(-|\s|$)', '\1Terrace\2'
-# '(\s)Wy(-|\s|$)', '\1Way\2'
-#
+
 # # expand other abbreviations in trailname
 # '(\s)Assn(-|\s|$)', '\1Association\2'
 'BPA', 'Bonneville Power Administration'
 # '(\s)Jr(-|\s|$)', '\1Junior\2'
-# '(^|\s|-)Mt(-|\s|$)', '\1Mount\2'
 'PED': 'Pedestrian'
-# '(^|-\s|-)St(\s)', '\1Saint\2'
-# '(\s)Tc(-|\s|$)', '\1Transit Center\2'
 # '(^|\s|-)Us(\s)', '\1United States\2'
-# '(^|\s|-)Va(-|\s|$)', '\1Veteran Affairs\2'
-#
+'VA': 'Veteran Affairs'
+
 # # special cases, since these are not common an index is being added to 'name' field
 # # and matches are being made on the full value to increase speed
-# 'BES': 'Bureau of Environmental Services'  # 'Bes Water Quality Control Lab Trail'
-# 'Fanno Creek Trail at Oregon Electric ROW', 'Fanno Creek Trail at Oregon Electric Right of Way'
-# 'Fulton Cc Driveway', 'Fulton Community Center Driveway'
-# 'HM Terpenning Recreation Complex Trails - Connector', 'Howard M Terpenning Recreation Complex Trails - Connector'
-# 'Shorenstein Properties Llc Connector', 'Shorenstein Properties Limited Liability Company Connector'
-# 'Mount Hood Cc Driveway - Kane Drive Connector', 'Mt Hood Community College Driveway - Kane Dr Connector'
-#
+'BES': 'Bureau of Environmental Services'  # 'Bes Water Quality Control Lab Trail'
+'ROW': 'Right of Way'  # 'Fanno Creek Trail at Oregon Electric ROW', issue with row type?
+'CC': 'Community Center'  # 'Fulton Cc Driveway', issue with community college?
+'CC': 'Community College'  # 'Mount Hood Cc Driveway - Kane Drive Connector'
+
 # # unknown abbreviation, switch back to caps
 # 'Cat Road (Retired)', 'CAT Road (Retired)'
 # 'Faof Canberra Trail', 'FAOF Canberra Trail'
 # 'Tbbv Path', 'TBBV Path'
 #
-# # typo fixes
-# 'Andrea Street - Mo Ccasin Connector', 'Andrea Street - Moccasin Connector'
-# 'West Unioin Road - 151st Place Connector', 'West Union Road - 151st Place Connector'
-#
-#
 # # b) 'alt_name' (aka sharedname)
 #
 # # expand abbreviations
-# '(\s)Ave(-|\s|$)', '\1Avenue\2'
-# '(\s)Ln(-|\s|$)', '\1Lane\2'
-# '(^|\s|-)Max(-|\s|$)', '\1Metropolitan Area Express\2'
-# '(^|\s|-)Mt(-|\s|$)', '\1Mount\2'
-# '(^|\s|-)Sw(\s)', '\1Southwest\2'
-# '(^|\s|-)Wes(-|\s|$)', '\1Westside Express Service\2'
-# 'THPRD': 'Tualatin Hills Park & Recreation District'
-#
-# # special cases, use index and match full name
-# 'TVWD Water Treatment Plant Trails', 'Tualatin Valley Water District Water Treatment Plant Trails'
-#
+'WES': 'Westside Express Service'
 #
 # # c) 'r_sysname' (aka systemname)
-#
-#
 
-#
 # # expand other abbreviations
 'ASSN': 'Association'
 'ES': 'Elementary School'  # not at start
@@ -332,15 +284,9 @@ trails_special_cases = {
 
 'MAX': 'Metropolitan Area Express'
 
-# '(^|\s|-)Mt(\s)', '\1Mount\2'
-
-
-# '(^|-\s|-)St(\s)', '\1Saint\2'
-
-#
 # # special case expansions
 'AM': 'Archibald M' # 'AM Kennedy Park Trails'
-'HM', 'Howard M'
+'HM': 'Howard M'  # 'HM Terpenning Recreation Complex Trails - Connector'
 'UJ': 'Ulin J'  # 'Uj Hamby Park Trails'
 
 
@@ -360,16 +306,18 @@ trails_special_cases = {
 # # unknown abbreviation, switch back to caps
 # 'Pbh Inc Trails', 'PBH Incorporated Trails'
 #
-# # typo fixes
+
+# # d) 'operator' (aka agencyname)
+#
+# # grammar fixes, this might able to be handled by the titlecase module
+# '(^|\s|-)Trimet(-|\s|$)', '\1TriMet\2'
+
+# Typo Fixes - these should be reported to Metro
+# SYSTEMNAME
 # 'Chiefain Dakota Greenway Trails', 'Chieftain Dakota Greenway Trails'
 # 'Tanasbource Villas Trail', 'Tanasbourne Villas Trail'
 # 'Southwest Portland Wilamette Greenway Trail', 'Southwest Portland Willamette Greenway Trail'
+# TRAILNAME
+# 'Andrea Street - Mo Ccasin Connector', 'Andrea Street - Moccasin Connector'
+# 'West Unioin Road - 151st Place Connector', 'West Union Road - 151st Place Connector'
 #
-#
-# # d) 'operator' (aka agencyname)
-#
-# # expand abbreviations
-# '(^|\s|-)Us(-|\s|$)', '\1Unites States\2'
-#
-# # grammar fixes, this could be handled by the titlecase module
-# '(^|\s|-)Trimet(-|\s|$)', '\1TriMet\2'
