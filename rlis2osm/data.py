@@ -35,6 +35,10 @@ class RlisPaths(object):
         if not exists(self.dst_dir):
             os.makedirs(self.dst_dir)
 
+    # TODO: flesh this idea out
+    def set_last_path(self, last_path):
+        self.last_path = last_path
+
     def _get_source_dir(self, src_dir):
         if src_dir:
             pass

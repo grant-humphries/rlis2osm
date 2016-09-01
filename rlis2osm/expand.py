@@ -88,12 +88,20 @@ class StreetNameExpander(object):
         'MT': 'Mountain'
     }
 
-    def __init__(self, src_path, dst_dir, parsed=False):
+    def __init__(self, src_path, dst_dir, parsed=False, name_parts=None):
+        """name_parts is dictionary specifying the parse fields that comprise
+        street name and should have the following keys: prefix, base_name,
+        type, suffix
+        """
         self.src_path = src_path
         self.dst_path = join(dst_dir, 'expanded_{}'.format(basename(src_path)))
+        self.parsed = parsed
+        self.name_parts = name_parts
+
+        # TODO consider handling case changes outside of this class
         self.tcase_callback = customize_titlecase()
 
-    def expand_abbreviations(self):
+    def expand_parsed(self):
         streets = fiona.open(**zip_path(self.src_path))
         metadata = streets.meta.copy()
 
@@ -122,6 +130,9 @@ class StreetNameExpander(object):
                 expanded_streets.write(feat)
 
         streets.close()
+
+    def expand_unparsed(self):
+        pass
 
     def _expand_basename(self, street_name, front, middle, back):
         # some street names are composed like this:
@@ -213,6 +224,10 @@ def main():
 if __name__ == '__main__':
     main()
 
+trails_special_cases = {
+
+}
+
 # # TRAILS SPECIAL CASE EXPANSIONS
 #
 # # trail fields that need expansion, titlecasing
@@ -258,15 +273,10 @@ if __name__ == '__main__':
 #
 # # expand other abbreviations in trailname
 # '(\s)Assn(-|\s|$)', '\1Association\2'
-# '(^|\s|-)Bpa(-|\s|$)', '\1Bonneville Power Administration\2'
-# '(\s)Es(-|\s|$)', '\1Elementary School\2'
-# '(^|\s|-)Hmwrs(-|\s|$)', '\1Homeowners\2'
-# '(^|\s|-)Hoa(-|\s|$)', '\1Homeowners Association\2'
+'BPA', 'Bonneville Power Administration'
 # '(\s)Jr(-|\s|$)', '\1Junior\2'
-# '(^|\s|-)Max(-|\s|$)', '\1Metropolitan Area Express\2'
-# '(\s)Ms(-|\s|$)', '\1Middle School\2'
 # '(^|\s|-)Mt(-|\s|$)', '\1Mount\2'
-# '(^|\s|-)Ped(-|\s|$)', '\1Pedestrian\2'
+'PED': 'Pedestrian'
 # '(^|-\s|-)St(\s)', '\1Saint\2'
 # '(\s)Tc(-|\s|$)', '\1Transit Center\2'
 # '(^|\s|-)Us(\s)', '\1United States\2'
@@ -308,52 +318,45 @@ if __name__ == '__main__':
 #
 # # c) 'r_sysname' (aka systemname)
 #
-# # expand street prefixes
-# '(^|-\s|-)N(\s)', '\1North\2'
-# '(^|\s|-)Ne(\s)', '\1Northeast\2'
-# '(^|\s|-)Nw(\s)', '\1Northwest\2'
-# '(^|\s|-)Se(\s)', '\1Southeast\2'
-# '(^|\s|-)Sw(\s)', '\1Southwest\2'
 #
-# # expand street types
-# '(\s)Ave(-|\s|$)', '\1Avenue\2'
-# '(\s)Blvd(-|\s|$)', '\1Boulevard\2'
-# '(\s)Ct(-|\s|$)', '\1Court\2'
-# '(\s)Dr(-|\s|$)', '\1Drive\2'
-# '(^|\s|-)Hwy(-|\s|$)', '\1Highway\2'
-# '(\s)Ln(-|\s|$)', '\1Lane\2'
-# '(\s)Pl(-|\s|$)', '\1Place\2'
-# '(\s)Rd(-|\s|$)', '\1Road\2'
-# '(\s)St(-|\s|$)', '\1Street\2'
+
 #
 # # expand other abbreviations
-# '(\s)Assn(-|\s|$)', '\1Association\2'
-# '(\s)Es[l]?(-|\s|$)', '\1Elementary School\2'
-# '(\s)HOA(-|\s|$)', '\1Homeowners Association\2'
-# '(\s)Hmwrs(\s)', '\1Homeowners\2'
-# '(^|\s|-)Max(-|\s|$)', '\1Metropolitan Area Express\2'
-# '(\s)Ms(-|\s|$)', '\1Middle School\2'
+'ASSN': 'Association'
+'ES': 'Elementary School'  # not at start
+'ESL': 'Elementary School'  # not at start
+'HOA': 'Homeowners Association'
+'HMWRS': 'Homeowners'
+'MS': 'Middle School'  # not at start
+'RR': 'Railroad'  # not at start
+
+'MAX': 'Metropolitan Area Express'
+
 # '(^|\s|-)Mt(\s)', '\1Mount\2'
-# '(^|\s|-)Pcc(-|\s|$)', '\1Portland Community College\2'
-# '(^|\s|-)Psu(-|\s|$)', '\1Portland State University\2'
-# '(\s)Rr(-|\s|$)', '\1Railroad\2'
+
+
 # '(^|-\s|-)St(\s)', '\1Saint\2'
-# '(^|\s|-)Thprd(-|\s|$)', '\1Tualatin Hills Park & Recreation District\2'
+
 #
 # # special case expansions
-# '(^|\s|-)HM(\s)', '\1Howard M\2'
-#
-# # special cases, use index and match full name
-# 'AM Kennedy Park Trails', 'Archibald M Kennedy Park Trails'
-# 'LDS': 'Latter Day Saints'  # 'Lds Trails'
-# 'LLC': 'Limited Liability Company' # 'Orenco Gardens Llc Park Trails'
-# 'Pacific Grove No 4 Homeowners Association Trails', 'Pacific Grove #4 Homeowners Association Trails'
-# 'Renaissance at Pkw Homeowners Trails', 'Renaissance at Peterkort Woods Homeowners Trails'
-# 'Proposed Regional Swc Connector', 'Proposed Regional Southwest Corridor Connector'
-# 'TVWD': 'Tualatin Valley Water District'  # 'Tvwd Water Treatment Plant Trails'
-# 'Uj Hamby Park Trails', 'Ulin J Hamby Park Trails'
-# 'WSU': 'Washington State University'  # 'Wsu Campus Trails'
-#
+'AM': 'Archibald M' # 'AM Kennedy Park Trails'
+'HM', 'Howard M'
+'UJ': 'Ulin J'  # 'Uj Hamby Park Trails'
+
+
+'LDS': 'Latter Day Saints'  # 'Lds Trails'
+'LLC': 'Limited Liability Company' # 'Orenco Gardens Llc Park Trails'
+'NO': 'Number'  # 'Pacific Grove No 4 Homeowners Association Trails',
+'PKW': 'Peterkort Woods'  # 'Renaissance at Pkw Homeowners Trails'
+'SWC': 'Southwest Corridor'  # 'Proposed Regional Swc Connector'
+
+
+'PCC': 'Portland Community College'
+'PSU': 'Portland State University'
+'THPRD': 'Tualatin Hills Park & Recreation District'
+'TVWD': 'Tualatin Valley Water District'  # 'Tvwd Water Treatment Plant Trails'
+'WSU': 'Washington State University'  # 'Wsu Campus Trails'
+
 # # unknown abbreviation, switch back to caps
 # 'Pbh Inc Trails', 'PBH Incorporated Trails'
 #
@@ -368,5 +371,5 @@ if __name__ == '__main__':
 # # expand abbreviations
 # '(^|\s|-)Us(-|\s|$)', '\1Unites States\2'
 #
-# # grammar fixes
+# # grammar fixes, this could be handled by the titlecase module
 # '(^|\s|-)Trimet(-|\s|$)', '\1TriMet\2'

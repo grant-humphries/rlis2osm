@@ -21,6 +21,7 @@ def main():
 
     opts = process_options()
 
+    # module execution order: data, expand, translate, combine, dissolve, ogr2osm
 
 if __name__ == '__main__':
     main()
