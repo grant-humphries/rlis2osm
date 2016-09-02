@@ -68,8 +68,10 @@ load_data() {
             fi
         fi
 
+        # postgres copy command (invoked by -D option) can't handle literal
+        # newlines so sed replaces them with newline characters
         shp2pgsql -d -s "${OSPN_EPSG}" -I -D -W 'LATIN1' "${ds_path}" \
-            | psql -d "${PGDBNAME}"
+            | sed 's/\n/\\n/g' | psql -d "${PGDBNAME}"
     done
 }
 
