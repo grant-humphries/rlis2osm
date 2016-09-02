@@ -10,7 +10,8 @@ create table short_words as
     select
         regexp_split_to_table(trailname, E'\\s+'), 'trailname',
         char_length(trailname)
-    from trails;
+    from trails
+        union all
     select
         regexp_split_to_table(sharedname, E'\\s+'), 'sharedname',
         char_length(sharedname)
