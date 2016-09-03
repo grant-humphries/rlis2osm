@@ -141,21 +141,25 @@ class StreetNameExpander(object):
     def expand_unparsed(self):
         pass
 
-    def _expand_basename(self, street_name, front, middle, back):
-        # some street names are composed like this:
-        # 'SW 5TH AVE-SW MORRISON ST', so first break them into parts
+    def _expand_basename(self, name, front, middle, back):
+        # remove any periods and split names at dashes because of this
+        # format: 'SW E St-SW Mill Ave'
+        parts = name.replace('.', '').split('-')
         part_list = list()
-        parts = street_name.split('-')
+
         for p in parts:
             word_list = list()
             words = p.split()
             num_words = len(words)
+
+            # if name is two word or less abbreviation positional trends
+            # are different
             for i, w in enumerate(words, 1):
                 # first word
-                if i == 1 and num_words > 1:
+                if i == 1 and num_words > 2:
                     w = front.get(w, w)
                 # last word
-                elif i == num_words and num_words > 1:
+                elif i == num_words and num_words > 2:
                     w = back.get(w, w)
                 # middle word(s)
                 else:
@@ -167,12 +171,6 @@ class StreetNameExpander(object):
         # lowercase
         expanded_name = '-'.join([' '.join(p) for p in part_list])
         return titlecase(expanded_name.lower(), callback=self.tcase_callback)
-
-    def _get_fix_mapping(self):
-        pass
-
-    def _get_type_mapping(self):
-        pass
 
 
 def merge_dicts(*dict_args):
@@ -211,11 +209,14 @@ def customize_titlecase():
 # TODO: handle streets with STREETNAME 'UNNAMED'
 
 
-# # STREETS SPECIAL CASE EXPANSIONS
+# STREETS SPECIAL CASE EXPANSIONS
 # 'FT OF N HOLLADAY'
 # 'US GRANT'
 # 'A v DAVIS'
 # 99w
+
+# TRAILS
+# "Gardenia St - E St Connector"
 
 # # special case grammar fixes and name expansions
 # if '.*(^|\s|-)O(brien|day|neal|neil[l]?)(-|\s|$).*':
@@ -240,10 +241,6 @@ if __name__ == '__main__':
 # systemname
 # agencyname
 
-# a) 'name' (aka trailname)
-# remove any periods (.) in trailname (do this for all name fields in trails)
-# name.replace('.', '')
-
 # pre and post separators are special cases (mainly '/')
 # '(\s|/)Ct(-|\s|$)', '\1Court\2'
 # '(\s)Dr(-|\s|$|/)', '\1Drive\2'
@@ -256,6 +253,7 @@ if __name__ == '__main__':
 'ESL': 'Elementary School'  # not at start
 'HOA': 'Homeowners Association'
 'HMWRS': 'Homeowners'
+'INC': 'Incorporated'
 'LDS': 'Latter Day Saints'  # 'Lds Trails'
 'LLC': 'Limited Liability Company' # 'Orenco Gardens Llc Park Trails'
 'MS': 'Middle School'  # not at start
@@ -265,23 +263,26 @@ if __name__ == '__main__':
 'RR': 'Railroad'  # not at start
 'VA': 'Veteran Affairs'
 
-# names
-'AM': 'Archibald M' # 'AM Kennedy Park Trails'
-'HM': 'Howard M'  # 'HM Terpenning Recreation Complex Trails - Connector'
-'UJ': 'Ulin J'  # 'Uj Hamby Park Trails'
+trail_special_case = {
+    # names
+    'AM': 'Archibald M', # 'AM Kennedy Park Trails'
+    'HM': 'Howard M',  # 'HM Terpenning Recreation Complex Trails - Connector'
+    'MLK': 'Martin Luther King',
+    'UJ': 'Ulin J',  # 'Uj Hamby Park Trails'
 
-# regional
-'BES': 'Bureau of Environmental Services'  # 'Bes Water Quality Control Lab Trail'
-'BPA': 'Bonneville Power Administration'
-'MAX': 'Metropolitan Area Express'
-'PCC': 'Portland Community College'
-'PKW': 'Peterkort Woods'  # 'Renaissance at Pkw Homeowners Trails'
-'PSU': 'Portland State University'
-'SWC': 'Southwest Corridor'  # 'Proposed Regional Swc Connector'
-'THPRD': 'Tualatin Hills Park & Recreation District'
-'TVWD': 'Tualatin Valley Water District'  # 'Tvwd Water Treatment Plant Trails'
-'WES': 'Westside Express Service'
-'WSU': 'Washington State University'  # 'Wsu Campus Trails'
+    # regional
+    'BES': 'Bureau of Environmental Services',  # 'Bes Water Quality Control Lab Trail'
+    'BPA': 'Bonneville Power Administration',
+    'MAX': 'Metropolitan Area Express',
+    'PCC': 'Portland Community College',
+    'PKW': 'Peterkort Woods',  # 'Renaissance at Pkw Homeowners Trails'
+    'PSU': 'Portland State University',
+    'SWC': 'Southwest Corridor',  # 'Proposed Regional Swc Connector'
+    'THPRD': 'Tualatin Hills Park & Recreation District',
+    'TVWD': 'Tualatin Valley Water District',  # 'Tvwd Water Treatment Plant Trails'
+    'WES': 'Westside Express Service',
+    'WSU': 'Washington State University'  # 'Wsu Campus Trails'
+}
 
 # Unknown Abbreviation, switch back to caps
 # SYSTEMNAME
@@ -303,3 +304,4 @@ if __name__ == '__main__':
 # TRAILNAME
 # 'Andrea Street - Mo Ccasin Connector', 'Moccasin'
 # 'West Unioin Road - 151st Place Connector', 'Union'
+# "106th - Mll Ct Connector", should be Mill

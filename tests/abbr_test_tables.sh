@@ -81,8 +81,8 @@ create_word_table() {
 }
 
 main() {
-    create_postgis_db
-    load_data
+#    create_postgis_db
+#    load_data
     create_word_table
 }
 

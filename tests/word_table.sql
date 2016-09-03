@@ -1,32 +1,35 @@
 --put all words that are a part of street and trail names as individual
 --entries in a table
-drop table if exists short_words cascade;
-create table short_words as
+drop table if exists words cascade;
+create table words as
     select
         regexp_split_to_table(streetname, E'\\s+')::text as word,
-        'streetname'::text as field, char_length(streetname)::int as len
+        'streetname'::text as field, streetname as fullname
     from streets
         union all
     select
         regexp_split_to_table(trailname, E'\\s+'), 'trailname',
-        char_length(trailname)
+        trailname
     from trails
         union all
     select
         regexp_split_to_table(sharedname, E'\\s+'), 'sharedname',
-        char_length(sharedname)
+        sharedname
     from trails
         union all
     select
         regexp_split_to_table(systemname, E'\\s+') , 'systemname',
-        char_length(systemname)
+        systemname
     from trails
         union all
     select
         regexp_split_to_table(agencyname, E'\\s+'), 'agencyname',
-        char_length(agencyname)
+        agencyname
     from trails;
 
-create index word_ix on short_words using BTREE (word);
-create index field_ix on short_words using BTREE (field);
-create index len_ix on short_words using BTREE (len);
+alter table words add len int;
+update words set len = char_length(word);
+
+create index word_ix on words using BTREE (word);
+create index field_ix on words using BTREE (field);
+create index len_ix on words using BTREE (len);
