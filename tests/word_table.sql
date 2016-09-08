@@ -2,27 +2,27 @@
 --entries in a table
 drop table if exists words cascade;
 create table words as
-    select
+    select distinct
         regexp_split_to_table(streetname, E'\\s+')::text as word,
         'streetname'::text as field, streetname as fullname
     from streets
         union all
-    select
+    select distinct
         regexp_split_to_table(trailname, E'\\s+'), 'trailname',
         trailname
     from trails
         union all
-    select
+    select distinct
         regexp_split_to_table(sharedname, E'\\s+'), 'sharedname',
         sharedname
     from trails
         union all
-    select
+    select distinct
         regexp_split_to_table(systemname, E'\\s+') , 'systemname',
         systemname
     from trails
         union all
-    select
+    select distinct
         regexp_split_to_table(agencyname, E'\\s+'), 'agencyname',
         agencyname
     from trails;

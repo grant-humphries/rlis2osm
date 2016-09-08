@@ -1,3 +1,4 @@
+import re
 from os.path import basename, join
 
 import fiona
@@ -104,6 +105,8 @@ class StreetNameExpander(object):
         self.dst_path = join(dst_dir, 'expanded_{}'.format(basename(src_path)))
         self.parsed = parsed
         self.name_parts = name_parts
+        self.delimiters = [' ', '/']
+        self.separator = '-'
 
         # TODO consider handling case changes outside of this class
         self.tcase_callback = customize_titlecase()
@@ -142,34 +145,43 @@ class StreetNameExpander(object):
         pass
 
     def _expand_basename(self, name, front, middle, back):
-        # remove any periods and split names at dashes because of this
-        # format: 'SW E St-SW Mill Ave'
-        parts = name.replace('.', '').split('-')
+        # in this context a separator is a characters that divides what
+        # could be two separate names that have been combined into one,
+        # delimiters are characters between words that together form a
+        # single name
+        separator = '-'
+        delimiters = [' ', '/']
+
+        parts = name.replace('.', '').split(separator)
         part_list = list()
 
         for p in parts:
             word_list = list()
-            words = p.split()
-            num_words = len(words)
+            words = re.split('([{}]+)'.format(''.join(delimiters)), p.strip())
+            num_words = len([w for w in words if w and w not in delimiters])
+            word_pos = 1
 
             # if name is two word or less abbreviation positional trends
             # are different
-            for i, w in enumerate(words, 1):
-                # first word
-                if i == 1 and num_words > 2:
-                    w = front.get(w, w)
-                # last word
-                elif i == num_words and num_words > 2:
-                    w = back.get(w, w)
-                # middle word(s)
-                else:
-                    w = middle.get(w, w)
+            for w in words:
+                if w and w not in delimiters:
+                    # first word
+                    if word_pos == 1 and num_words > 2:
+                        w = front.get(w, w)
+                    # last word
+                    elif word_pos == num_words and num_words > 2:
+                        w = back.get(w, w)
+                    # middle word(s)
+                    else:
+                        w = middle.get(w, w)
+
+                    word_pos += 1
                 word_list.append(w)
             part_list.append(word_list)
 
         # the title case module seems to only work when starting from
         # lowercase
-        expanded_name = '-'.join([' '.join(p) for p in part_list])
+        expanded_name = separator.join([''.join(wl) for wl in part_list])
         return titlecase(expanded_name.lower(), callback=self.tcase_callback)
 
 
@@ -209,18 +221,13 @@ def customize_titlecase():
 # TODO: handle streets with STREETNAME 'UNNAMED'
 
 
-# STREETS SPECIAL CASE EXPANSIONS
-# 'FT OF N HOLLADAY'
-# 'US GRANT'
-# 'A v DAVIS'
-# 99w
-
+# Special Case Incorrect Expansions
+# STREETS
+# 'FT OF N HOLLADAY': 'N' won't be expanded to North
+# 'US GRANT': should be Ulysses S, will be United States
 # TRAILS
-# "Gardenia St - E St Connector"
-
-# # special case grammar fixes and name expansions
-# if '.*(^|\s|-)O(brien|day|neal|neil[l]?)(-|\s|$).*':
-#     '(^|\s|-)O(brien|day|neal|neil[l]?)(-|\s|$)', '\1O''\2\3'
+# "Gardenia St - E St Connector": E will be expanded to East
+# 'Fulton Cc Driveway', problem \|/
 
 
 def main():
@@ -246,24 +253,26 @@ if __name__ == '__main__':
 # '(\s)Dr(-|\s|$|/)', '\1Drive\2'
 
 # general (united states)
-'ASSN': 'Association'
-'CC': 'Community Center'  # 'Fulton Cc Driveway', problem \|/
-'CC': 'Community College'  # 'Mount Hood Cc Driveway - Kane Drive Connector', problem ^
-'ES': 'Elementary School'  # not at start
-'ESL': 'Elementary School'  # not at start
-'HOA': 'Homeowners Association'
-'HMWRS': 'Homeowners'
-'INC': 'Incorporated'
-'LDS': 'Latter Day Saints'  # 'Lds Trails'
-'LLC': 'Limited Liability Company' # 'Orenco Gardens Llc Park Trails'
-'MS': 'Middle School'  # not at start
-'NO': 'Number'  # 'Pacific Grove No 4 Homeowners Association Trails'
-'PED': 'Pedestrian'
-'ROW': 'Right of Way'  # 'Fanno Creek Trail at Oregon Electric ROW', issue with type: Row?
-'RR': 'Railroad'  # not at start
-'VA': 'Veteran Affairs'
+common = {
+    'ASSN': 'Association',
+    'CC': 'Community Center',  # 'Fulton Cc Driveway', problem \|/
+    'CC': 'Community College',  # 'Mount Hood Cc Driveway - Kane Drive Connector', problem ^
+    'ES': 'Elementary School',  # not at start
+    'ESL': 'Elementary School',  # not at start
+    'HOA': 'Homeowners Association',
+    'HMWRS': 'Homeowners',
+    'INC': 'Incorporated',
+    'LDS': 'Latter Day Saints',  # 'Lds Trails'
+    'LLC': 'Limited Liability Company', # 'Orenco Gardens Llc Park Trails'
+    'MS': 'Middle School',  # not at start
+    'NO': 'Number',  # 'Pacific Grove No 4 Homeowners Association Trails'
+    'PED': 'Pedestrian',
+    'ROW': 'Right of Way',  # 'Fanno Creek Trail at Oregon Electric ROW', issue with type: Row?
+    'RR': 'Railroad',  # not at start
+    'VA': 'Veteran Affairs'
+}
 
-trail_special_case = {
+special_case = {
     # names
     'AM': 'Archibald M', # 'AM Kennedy Park Trails'
     'HM': 'Howard M',  # 'HM Terpenning Recreation Complex Trails - Connector'
@@ -288,7 +297,6 @@ trail_special_case = {
 # SYSTEMNAME
 # 'Pbh Inc Trails', 'PBH Incorporated Trails'
 # TRAILNAME
-# 'Cat Road (Retired)', 'CAT Road (Retired)'
 # 'Faof Canberra Trail', 'FAOF Canberra Trail'
 # 'Tbbv Path', 'TBBV Path'
 
