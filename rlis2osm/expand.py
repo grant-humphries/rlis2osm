@@ -1,56 +1,49 @@
 import re
-from os.path import basename, join
 
-import fiona
 from titlecase import set_small_word_list, titlecase, SMALL
 
-from rlis2osm.data import RlisPaths
-from rlis2osm.utils import zip_path
 
-SPECIAL_CASE = {
+SPECIAL_CASE = [
     # names
-    'AM': 'Archibald M',  # 'AM Kennedy Park Trails'
-    'HM': 'Howard M',  # 'HM Terpenning Recreation Complex Trails - Connector'
-    'JQ': 'John Quincy',  # Adams
-    'MLK': 'Martin Luther King',
-    'UJ': 'Ulin J',  # 'UJ Hamby Park Trails'
+    ('AM', 'Archibald M', 'fm'),  # 'AM Kennedy Park Trails'
+    ('HM', 'Howard M', 'fm'),  # 'HM Terpenning Recreation Complex Trails - Connector'
+    ('JQ', 'John Quincy', 'fm'),  # Adams
+    ('UJ', 'Ulin J', 'fm'),  # 'UJ Hamby Park Trails'
 
     # regional
-    'BES': 'Bureau of Environmental Services',  # 'Bes Water Quality Control Lab Trail'
-    'BPA': 'Bonneville Power Administration',
-    'MAX': 'Metropolitan Area Express',
-    'PCC': 'Portland Community College',
-    'PKW': 'Peterkort Woods',  # 'Renaissance at Pkw Homeowners Trails'
-    'PSU': 'Portland State University',
-    'SWC': 'Southwest Corridor',  # 'Proposed Regional Swc Connector'
-    'THPRD': 'Tualatin Hills Park & Recreation District',
-    'TVWD': 'Tualatin Valley Water District',  # 'Tvwd Water Treatment Plant Trails'
-    'WES': 'Westside Express Service',
-    'WSU': 'Washington State University'  # 'Wsu Campus Trails'
-}
+    ('BES', 'Bureau of Environmental Services', 'a'),  # 'Bes Water Quality Control Lab Trail'
+    ('BPA', 'Bonneville Power Administration', 'a'),
+    ('MAX', 'Metropolitan Area Express', 'a'),
+    ('PCC', 'Portland Community College', 'a'),
+    ('PKW', 'Peterkort Woods', 'fm'),  # 'Renaissance at Pkw Homeowners Trails'
+    ('PSU', 'Portland State University', 'a'),
+    ('SWC', 'Southwest Corridor', 'a'),  # 'Proposed Regional Swc Connector'
+    ('THPRD', 'Tualatin Hills Park & Recreation District', 'a'),
+    ('TVWD', 'Tualatin Valley Water District', 'a'),  # 'Tvwd Water Treatment Plant Trails'
+    ('WES', 'Westside Express Service', 'a'),
+    ('WSU', 'Washington State University' 'a')  # 'Wsu Campus Trails'
+]
 
 
 class StreetNameExpander(object):
-    SINGLE_DIR_MAP = {
-        'E': 'East',
+    DIRECTION = {
         'N': 'North',
-        'S': 'South',
-        'W': 'West'
-    }
-
-    COMBO_DIR_MAP = {
-        'EB': 'Eastbound',
-        'NB': 'Northbound',
         'NE': 'Northeast',
-        'NW': 'Northwest',
-        'SB': 'Southbound',
+        'E': 'East',
         'SE': 'Southeast',
+        'S': 'South',
         'SW': 'Southwest',
+        'W': 'West',
+        'NW': 'Northwest',
+
+        'NB': 'Northbound',
+        'EB': 'Eastbound',
+        'SB': 'Southbound',
         'WB': 'Westbound'
     }
 
     # these will appear as the end of the street name only
-    SUFFIX_MAP = {
+    TYPE = {
         'ALY': 'Alley',
         'AV': 'Avenue',
         'AVE': 'Avenue',
@@ -88,142 +81,138 @@ class StreetNameExpander(object):
         'WY': 'Way'
     }
 
-    NOT_END = {
-        'MT': 'Mount',  # maps to 'Mountain' at end
-        'ST': 'Saint',  # this should override ST --> Street in some cases
-    }
-
-    END_ONLY = {
-        'MT': 'Mountain'
-    }
-
     # general for United States
-    BASENAME_MAP = {
-        'ASSN': 'Association',
-        'CC': 'Community College',
-        'CO': 'County',
-        'ES': 'Elementary School',  # not at start
-        'ESL': 'Elementary School',  # not at start
-        'FT': 'Foot',
-        'HOA': 'Homeowners Association',
-        'HOSP': 'Hospital',
-        'HMWRS': 'Homeowners',
-        'INC': 'Incorporated',
-        'JR': 'Junior',
-        'LDS': 'Latter Day Saints',  # 'Lds Trails'
-        'LLC': 'Limited Liability Company',  # 'Orenco Gardens Llc Park Trails'
-        'MED': 'Medical',
-        'MS': 'Middle School',  # not at start
-        'MTN': 'Mountain',
-        'NFD': 'Nation Forest Development Road',
-        'NO': 'Number',  # 'Pacific Grove No 4 Homeowners Association Trails'
-        'PED': 'Pedestrian',
-        'ROW': 'Right of Way',  # 'Fanno Creek Trail at Oregon Electric ROW', issue with type: Row?
-        'RR': 'Railroad',  # not at start
-        'TC': 'Transit Center',
-        'US': 'United States',
-        'VA': 'Veteran Affairs'
-    }
+    # columns are abbreviation, expansion, allows positions
+    BASENAME = [
+        ('ASSN', 'Association', 'a'),
+        ('CC', 'Community College', ),
+        ('CO', 'County', ),
+        ('ES', 'Elementary School', 'ml'),
+        ('ESL', 'Elementary School', 'ml'),
+        ('FT', 'Foot', ),
+        ('HOA', 'Homeowners Association', 'a'),
+        ('HOSP', 'Hospital', ),
+        ('HMWRS', 'Homeowners', 'a'),
+        ('INC', 'Incorporated', ),
+        ('JR', 'Junior', ),
+        ('LDS', 'Latter Day Saints', ),  # 'Lds Trails'
+        ('LLC', 'Limited Liability Company', ),  # 'Orenco Gardens Llc Park Trails'
+        ('MED', 'Medical', ),
+        ('MLK', 'Martin Luther King', ),
+        ('MS', 'Middle School', 'ml'),
+        ('MT', 'Mount', 'fm'),
+        ('MT', 'Mountain', 'l'),
+        ('MTN', 'Mountain', ),
+        ('NFD', 'Nation Forest Development Road', ),
+        ('NO', 'Number', ),  # 'Pacific Grove No 4 Homeowners Association Trails'
+        ('PED', 'Pedestrian', 'a'),
+        ('ROW', 'Right of Way', ),  # 'Fanno Creek Trail at Oregon Electric ROW', issue with type: Row?
+        ('RR', 'Railroad', 'ml'),  # not at start
+        ('ST', 'Saint', 'fm'),
+        ('TC', 'Transit Center', 'a'),
+        ('US', 'United States', ),
+        ('VA', 'Veteran Affairs')
+    ]
 
-    def __init__(self, src_path, dst_dir, parsed=False, name_parts=None):
-        """name_parts is dictionary specifying the parse fields that comprise
-        street name and should have the following keys: prefix, base_name,
-        type, suffix
+    def __init__(self, delimiter='-', separators=(' ', '/'), special_cases=None):
+        """In this context a delimiter is a character that divides what
+        could be two distinct names that have been combined into one,
+        separators are characters between words that together form a
+        single name
         """
-        self.src_path = src_path
-        self.dst_path = join(dst_dir, 'expanded_{}'.format(basename(src_path)))
-        self.parsed = parsed
-        self.name_parts = name_parts
-        self.separators = [' ', '/']
-        self.delimiter = '-'
+
+        self.delimiter = delimiter
+        self.separators = separators
+        self.special_cases = special_cases
+
+        self.expander = self._prep_expander()
 
         # TODO consider handling case changes outside of this class
         self.tcase_callback = customize_titlecase()
 
-    def expand_parsed(self):
-        streets = fiona.open(**zip_path(self.src_path))
-        metadata = streets.meta.copy()
-        fields = metadata['schema']['properties']
-        fields['name'] = 'Str'
+    def _prep_expander(self):
+        combo_dir = {a: x for a, x in self.DIRECTION.items() if len(a) > 1}
+        
+        if self.special_cases:
+            self.BASENAME += self.special_cases
 
-        direction_map = merge_dicts(self.SINGLE_DIR_MAP, self.COMBO_DIR_MAP)
-        front_map = merge_dicts(
-            direction_map, self.BASENAME_MAP, self.SUFFIX_MAP, self.NOT_END)
-        middle_map = merge_dicts(
-            self.COMBO_DIR_MAP, self.BASENAME_MAP, self.SUFFIX_MAP, self.NOT_END)
-        back_map = merge_dicts(
-            direction_map, self.BASENAME_MAP, self.SUFFIX_MAP, self.END_ONLY)
+        # first, middle and last refer to the position of the word in
+        # name that is being expanded
+        f_dict, m_dict, l_dict = {}, {}, {}
+        for k, v, placement in self.BASENAME:
+            # a = any, f = first, m = middle, l = last
+            for p in placement:
+                if p == 'a':
+                    f_dict[k] = v
+                    m_dict[k] = v
+                    l_dict[k] = v
+                elif p == 'f':
+                    f_dict[k] = v
+                elif p == 'm':
+                    m_dict[k] = v
+                elif p == 'l':
+                    l_dict[k] = v
 
-        with fiona.open(self.dst_path, 'w', **metadata) as expanded_streets:
-            for feat in streets:
-                tags = feat['properties']
-                prefix = tags['PREFIX']
-                street_name = tags['STREETNAME'] or ''
-                f_type = tags['FTYPE'] or ''
-                direction = tags['DIRECTION']
+        # order matters here, some entries in 'type' are being overwritten
+        # by items originally from 'basename'
+        f_list = [self.DIRECTION, self.TYPE, f_dict]
+        m_list = [combo_dir, self.TYPE, m_dict]
+        l_list = [self.DIRECTION, self.TYPE, l_dict]
 
-                tags['PREFIX'] = direction_map.get(prefix, prefix)
-                tags['STREETNAME'] = self._expand_basename(
-                    street_name, front_map, middle_map, back_map)
-                tags['FTYPE'] = self.SUFFIX_MAP.get(f_type, f_type).title()
-                tags['DIRECTION'] = direction_map.get(direction, direction)
+        return {
+            'first': self._merge_dicts(*f_list),
+            'middle': self._merge_dicts(*m_list),
+            'last': self._merge_dicts(*l_list)
+        }
 
-                # the title case module seems to only work when starting from
-                # lowercase
-                titlecase(expanded_name.lower(), callback=self.tcase_callback)
-                expanded_streets.write(feat)
+    def _merge_dicts(*dict_args):
+        master_dict = dict()
 
-        streets.close()
+        for dict_ in dict_args:
+            master_dict.update(dict_)
 
-    def expand_unparsed(self):
-        pass
+        return master_dict
 
-    def _expand_basename(self, name, front, middle, back):
-        # in this context a delimiter is a character that divides what
-        # could be two distinct names that have been combined into one,
-        # separators are characters between words that together form a
-        # single name
-        delimiter = '-'
-        separators = [' ', '/']
-
-        parts = name.replace('.', '').split(delimiter)
+    def basename(self, name):
+        # remove any periods and split at delimiter
+        parts = name.replace('.', '').split(self.delimiter)
         part_list = list()
 
         for p in parts:
             word_list = list()
-            words = re.split('([{}]+)'.format(''.join(separators)), p.strip())
-            num_words = len([w for w in words if w and w not in separators])
+            split_regex = '([{}]+)'.format(''.join(self.separators))
+            words = re.split(split_regex, p.strip())  # remove edge whitespace
+            num_words = len([w for w in words if w and w not in self.separators])
             word_pos = 1
 
             # if name is two word or less abbreviation positional trends
             # are different
             for w in words:
-                if w and w not in separators:
+                if w and w not in self.separators:
+                    # mappings assume abbreviated words are all caps
+                    uw = w.upper()
+
                     # first word
                     if word_pos == 1 and num_words > 2:
-                        w = front.get(w, w)
+                        w = self.expander['first'].get(uw, w)
                     # last word
                     elif word_pos == num_words and num_words > 2:
-                        w = back.get(w, w)
+                        w = self.expander['last'].get(uw, w)
                     # middle word(s)
                     else:
-                        w = middle.get(w, w)
+                        w = self.expander['middle'].get(uw, w)
 
                     word_pos += 1
                 word_list.append(w)
             part_list.append(word_list)
 
-        expanded_name = delimiter.join([''.join(wl) for wl in part_list])
-        return expanded_name
+        return self.delimiter.join([''.join(wl) for wl in part_list])
 
+    def type(self, street_type):
+        return self.TYPE.get(street_type.upper(), street_type)
 
-def merge_dicts(*dict_args):
-    master_dict = dict()
-
-    for dict_ in dict_args:
-        master_dict.update(dict_)
-
-    return master_dict
+    def direction(self, direct):
+        return self.DIRECTION.get(direct.upper(), direct)
 
 
 def customize_titlecase():
@@ -238,10 +227,10 @@ def customize_titlecase():
         # any function supplied to titlecase as a callback
 
         if word[0].isdigit() and word[-1].isalpha():
-            # cases like 45th
+            # cases like '45th'
             if word[-2].isalpha():
                 word.lower()
-            # cases like 99W
+            # cases like '99W'
             else:
                 word.upper()
 
@@ -249,20 +238,6 @@ def customize_titlecase():
 
     return number_after_letter
 
-
-def main():
-    paths = RlisPaths()
-    street_expander = StreetNameExpander(paths.streets, paths.prj_dir)
-    street_expander.expand_abbreviations()
-
-
-if __name__ == '__main__':
-    main()
-
-
-# TODO: handle streets with STREETNAME 'UNNAMED'
-
-# TRAILS SPECIAL CASE EXPANSIONS
 
 # trail fields that need expansion, titlecasing
 # trailname
@@ -289,12 +264,12 @@ if __name__ == '__main__':
 # TRAILNAME
 # 'Andrea Street - Mo Ccasin Connector', 'Moccasin'
 # 'West Unioin Road - 151st Place Connector', 'Union'
-# "106th - Mll Ct Connector", should be Mill
+# '106th - Mll Ct Connector', 'Mll' should be Mill
 
 # Special Case Incorrect Expansions
 # STREETS
 # 'FT OF N HOLLADAY': 'N' won't be expanded to North
-# 'US GRANT': should be Ulysses S, will be United States
+# 'US GRANT': should be Ulysses S; will be United States
 # TRAILS
 # 'Gardenia St - E St Connector': E will be expanded to East
 # 'Fulton CC Driveway': CC is normally community college, but here it's community center

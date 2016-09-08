@@ -8,6 +8,8 @@ from rlis2osm.data import RlisPaths
 from rlis2osm.utils import zip_path
 
 
+# TODO: handle streets with STREETNAME 'UNNAMED'
+
 class Translator(object):
     OSM_KEYS = None
 

@@ -14,6 +14,9 @@ start_time = time()
 
 class WayDissolver(object):
 
+    # TODO remove opening and closing of shapefile and jsut feed the
+    # class features
+
     def __init__(self, src_path, dst_dir, fields=None, field_exclude=False):
         self.src_path = src_path
         self.dst_dir = dst_dir
