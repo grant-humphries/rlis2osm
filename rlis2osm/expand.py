@@ -7,6 +7,28 @@ from titlecase import set_small_word_list, titlecase, SMALL
 from rlis2osm.data import RlisPaths
 from rlis2osm.utils import zip_path
 
+SPECIAL_CASE = {
+    # names
+    'AM': 'Archibald M',  # 'AM Kennedy Park Trails'
+    'HM': 'Howard M',  # 'HM Terpenning Recreation Complex Trails - Connector'
+    'JQ': 'John Quincy',  # Adams
+    'MLK': 'Martin Luther King',
+    'UJ': 'Ulin J',  # 'UJ Hamby Park Trails'
+
+    # regional
+    'BES': 'Bureau of Environmental Services',  # 'Bes Water Quality Control Lab Trail'
+    'BPA': 'Bonneville Power Administration',
+    'MAX': 'Metropolitan Area Express',
+    'PCC': 'Portland Community College',
+    'PKW': 'Peterkort Woods',  # 'Renaissance at Pkw Homeowners Trails'
+    'PSU': 'Portland State University',
+    'SWC': 'Southwest Corridor',  # 'Proposed Regional Swc Connector'
+    'THPRD': 'Tualatin Hills Park & Recreation District',
+    'TVWD': 'Tualatin Valley Water District',  # 'Tvwd Water Treatment Plant Trails'
+    'WES': 'Westside Express Service',
+    'WSU': 'Washington State University'  # 'Wsu Campus Trails'
+}
+
 
 class StreetNameExpander(object):
     SINGLE_DIR_MAP = {
@@ -25,27 +47,6 @@ class StreetNameExpander(object):
         'SE': 'Southeast',
         'SW': 'Southwest',
         'WB': 'Westbound'
-    }
-
-    BASENAME_MAP = {
-        'CC': 'Community College',
-        'CO': 'County',
-        'FT': 'Foot',
-        'HOSP': 'Hospital',
-        'MED': 'Medical',
-        'JR': 'Junior',
-        'MTN': 'Mountain',
-        'NFD': 'Nation Forest Development Road',
-        'TC': 'Transit Center',
-        'US': 'United States'  # there is a 'US Grant' which is Ulysses S
-    }
-
-    street_special_case = {
-        'basename': {
-            'BPA': 'Bonneville Power Administration',
-            'JQ': 'John Quincy',  # Adams
-            'PCC': 'Portland Community College',
-        }
     }
 
     # these will appear as the end of the street name only
@@ -96,6 +97,34 @@ class StreetNameExpander(object):
         'MT': 'Mountain'
     }
 
+    # general for United States
+    BASENAME_MAP = {
+        'ASSN': 'Association',
+        'CC': 'Community College',
+        'CO': 'County',
+        'ES': 'Elementary School',  # not at start
+        'ESL': 'Elementary School',  # not at start
+        'FT': 'Foot',
+        'HOA': 'Homeowners Association',
+        'HOSP': 'Hospital',
+        'HMWRS': 'Homeowners',
+        'INC': 'Incorporated',
+        'JR': 'Junior',
+        'LDS': 'Latter Day Saints',  # 'Lds Trails'
+        'LLC': 'Limited Liability Company',  # 'Orenco Gardens Llc Park Trails'
+        'MED': 'Medical',
+        'MS': 'Middle School',  # not at start
+        'MTN': 'Mountain',
+        'NFD': 'Nation Forest Development Road',
+        'NO': 'Number',  # 'Pacific Grove No 4 Homeowners Association Trails'
+        'PED': 'Pedestrian',
+        'ROW': 'Right of Way',  # 'Fanno Creek Trail at Oregon Electric ROW', issue with type: Row?
+        'RR': 'Railroad',  # not at start
+        'TC': 'Transit Center',
+        'US': 'United States',
+        'VA': 'Veteran Affairs'
+    }
+
     def __init__(self, src_path, dst_dir, parsed=False, name_parts=None):
         """name_parts is dictionary specifying the parse fields that comprise
         street name and should have the following keys: prefix, base_name,
@@ -105,8 +134,8 @@ class StreetNameExpander(object):
         self.dst_path = join(dst_dir, 'expanded_{}'.format(basename(src_path)))
         self.parsed = parsed
         self.name_parts = name_parts
-        self.delimiters = [' ', '/']
-        self.separator = '-'
+        self.separators = [' ', '/']
+        self.delimiter = '-'
 
         # TODO consider handling case changes outside of this class
         self.tcase_callback = customize_titlecase()
@@ -114,6 +143,8 @@ class StreetNameExpander(object):
     def expand_parsed(self):
         streets = fiona.open(**zip_path(self.src_path))
         metadata = streets.meta.copy()
+        fields = metadata['schema']['properties']
+        fields['name'] = 'Str'
 
         direction_map = merge_dicts(self.SINGLE_DIR_MAP, self.COMBO_DIR_MAP)
         front_map = merge_dicts(
@@ -137,6 +168,9 @@ class StreetNameExpander(object):
                 tags['FTYPE'] = self.SUFFIX_MAP.get(f_type, f_type).title()
                 tags['DIRECTION'] = direction_map.get(direction, direction)
 
+                # the title case module seems to only work when starting from
+                # lowercase
+                titlecase(expanded_name.lower(), callback=self.tcase_callback)
                 expanded_streets.write(feat)
 
         streets.close()
@@ -145,26 +179,26 @@ class StreetNameExpander(object):
         pass
 
     def _expand_basename(self, name, front, middle, back):
-        # in this context a separator is a characters that divides what
-        # could be two separate names that have been combined into one,
-        # delimiters are characters between words that together form a
+        # in this context a delimiter is a character that divides what
+        # could be two distinct names that have been combined into one,
+        # separators are characters between words that together form a
         # single name
-        separator = '-'
-        delimiters = [' ', '/']
+        delimiter = '-'
+        separators = [' ', '/']
 
-        parts = name.replace('.', '').split(separator)
+        parts = name.replace('.', '').split(delimiter)
         part_list = list()
 
         for p in parts:
             word_list = list()
-            words = re.split('([{}]+)'.format(''.join(delimiters)), p.strip())
-            num_words = len([w for w in words if w and w not in delimiters])
+            words = re.split('([{}]+)'.format(''.join(separators)), p.strip())
+            num_words = len([w for w in words if w and w not in separators])
             word_pos = 1
 
             # if name is two word or less abbreviation positional trends
             # are different
             for w in words:
-                if w and w not in delimiters:
+                if w and w not in separators:
                     # first word
                     if word_pos == 1 and num_words > 2:
                         w = front.get(w, w)
@@ -179,10 +213,8 @@ class StreetNameExpander(object):
                 word_list.append(w)
             part_list.append(word_list)
 
-        # the title case module seems to only work when starting from
-        # lowercase
-        expanded_name = separator.join([''.join(wl) for wl in part_list])
-        return titlecase(expanded_name.lower(), callback=self.tcase_callback)
+        expanded_name = delimiter.join([''.join(wl) for wl in part_list])
+        return expanded_name
 
 
 def merge_dicts(*dict_args):
@@ -218,18 +250,6 @@ def customize_titlecase():
     return number_after_letter
 
 
-# TODO: handle streets with STREETNAME 'UNNAMED'
-
-
-# Special Case Incorrect Expansions
-# STREETS
-# 'FT OF N HOLLADAY': 'N' won't be expanded to North
-# 'US GRANT': should be Ulysses S, will be United States
-# TRAILS
-# "Gardenia St - E St Connector": E will be expanded to East
-# 'Fulton Cc Driveway', problem \|/
-
-
 def main():
     paths = RlisPaths()
     street_expander = StreetNameExpander(paths.streets, paths.prj_dir)
@@ -240,6 +260,8 @@ if __name__ == '__main__':
     main()
 
 
+# TODO: handle streets with STREETNAME 'UNNAMED'
+
 # TRAILS SPECIAL CASE EXPANSIONS
 
 # trail fields that need expansion, titlecasing
@@ -247,51 +269,6 @@ if __name__ == '__main__':
 # sharedname
 # systemname
 # agencyname
-
-# pre and post separators are special cases (mainly '/')
-# '(\s|/)Ct(-|\s|$)', '\1Court\2'
-# '(\s)Dr(-|\s|$|/)', '\1Drive\2'
-
-# general (united states)
-common = {
-    'ASSN': 'Association',
-    'CC': 'Community Center',  # 'Fulton Cc Driveway', problem \|/
-    'CC': 'Community College',  # 'Mount Hood Cc Driveway - Kane Drive Connector', problem ^
-    'ES': 'Elementary School',  # not at start
-    'ESL': 'Elementary School',  # not at start
-    'HOA': 'Homeowners Association',
-    'HMWRS': 'Homeowners',
-    'INC': 'Incorporated',
-    'LDS': 'Latter Day Saints',  # 'Lds Trails'
-    'LLC': 'Limited Liability Company', # 'Orenco Gardens Llc Park Trails'
-    'MS': 'Middle School',  # not at start
-    'NO': 'Number',  # 'Pacific Grove No 4 Homeowners Association Trails'
-    'PED': 'Pedestrian',
-    'ROW': 'Right of Way',  # 'Fanno Creek Trail at Oregon Electric ROW', issue with type: Row?
-    'RR': 'Railroad',  # not at start
-    'VA': 'Veteran Affairs'
-}
-
-special_case = {
-    # names
-    'AM': 'Archibald M', # 'AM Kennedy Park Trails'
-    'HM': 'Howard M',  # 'HM Terpenning Recreation Complex Trails - Connector'
-    'MLK': 'Martin Luther King',
-    'UJ': 'Ulin J',  # 'Uj Hamby Park Trails'
-
-    # regional
-    'BES': 'Bureau of Environmental Services',  # 'Bes Water Quality Control Lab Trail'
-    'BPA': 'Bonneville Power Administration',
-    'MAX': 'Metropolitan Area Express',
-    'PCC': 'Portland Community College',
-    'PKW': 'Peterkort Woods',  # 'Renaissance at Pkw Homeowners Trails'
-    'PSU': 'Portland State University',
-    'SWC': 'Southwest Corridor',  # 'Proposed Regional Swc Connector'
-    'THPRD': 'Tualatin Hills Park & Recreation District',
-    'TVWD': 'Tualatin Valley Water District',  # 'Tvwd Water Treatment Plant Trails'
-    'WES': 'Westside Express Service',
-    'WSU': 'Washington State University'  # 'Wsu Campus Trails'
-}
 
 # Unknown Abbreviation, switch back to caps
 # SYSTEMNAME
@@ -313,3 +290,11 @@ special_case = {
 # 'Andrea Street - Mo Ccasin Connector', 'Moccasin'
 # 'West Unioin Road - 151st Place Connector', 'Union'
 # "106th - Mll Ct Connector", should be Mill
+
+# Special Case Incorrect Expansions
+# STREETS
+# 'FT OF N HOLLADAY': 'N' won't be expanded to North
+# 'US GRANT': should be Ulysses S, will be United States
+# TRAILS
+# 'Gardenia St - E St Connector': E will be expanded to East
+# 'Fulton CC Driveway': CC is normally community college, but here it's community center
