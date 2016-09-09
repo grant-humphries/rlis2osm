@@ -11,20 +11,12 @@ from rlis2osm.data import RlisPaths
 
 start_time = time()
 
-# TODO take a look at the link below:
-# this may help in determining how to merge connected segments with
-# common attribute with python, replicating what is done with postgis
-# below: http://gis.stackexchange.com/questions/61474/
 
 class WayDissolver(object):
 
-    # TODO remove opening and closing of shapefile and jsut feed the
-    # class features
-
-    def __init__(self, src_path, dst_dir, fields=None, field_exclude=False):
+    def __init__(self, src_path, dst_path, fields=None, field_exclude=False):
         self.src_path = src_path
-        self.dst_dir = dst_dir
-        self.dst_path = None
+        self.dst_path = dst_path
         self.fields = self._define_filter_fields(fields, field_exclude)
 
     def dissolve_ways(self):
@@ -43,8 +35,9 @@ class WayDissolver(object):
                     geom = shape(feat['geometry'])
                     geom_list.append(geom)
 
+                group_tags = ways[group[0]]['properties']
                 dissolve_geom = unary_union(geom_list)
-                dissolve_tags = self._filter_tags(feat['properties'])
+                dissolve_tags = self._filter_tags(group_tags)
                 dissolve_shp.write(dict(
                     geometry=mapping(dissolve_geom),
                     properties=dissolve_tags
@@ -98,7 +91,7 @@ class WayDissolver(object):
         return way_groups
 
     def _define_filter_fields(self, filter_fields, exclude):
-        """verify that supplied fields exist in the shapefile and define
+        """verify that supplied fields exists in the shapefile and define
         the fields that must match for a merge to be allowed
         """
 
@@ -107,6 +100,7 @@ class WayDissolver(object):
         if filter_fields:
             for ff in filter_fields:
                 if ff not in fields:
+                    # TODO raise error here instead
                     logging.error('supplied field: "{}", does not exists in '
                                   'the data, modify the "fields" input and run '
                                   'again'.format(ff))

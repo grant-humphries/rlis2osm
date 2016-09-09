@@ -89,20 +89,20 @@ class StreetNameExpander(object):
         ('CO', 'County', ),
         ('ES', 'Elementary School', 'ml'),
         ('ESL', 'Elementary School', 'ml'),
-        ('FT', 'Foot', ),
+        ('FT', 'Foot', 'fm'),
         ('HOA', 'Homeowners Association', 'a'),
-        ('HOSP', 'Hospital', ),
+        ('HOSP', 'Hospital', 'a'),
         ('HMWRS', 'Homeowners', 'a'),
         ('INC', 'Incorporated', ),
         ('JR', 'Junior', ),
         ('LDS', 'Latter Day Saints', ),  # 'Lds Trails'
         ('LLC', 'Limited Liability Company', ),  # 'Orenco Gardens Llc Park Trails'
         ('MED', 'Medical', ),
-        ('MLK', 'Martin Luther King', ),
+        ('MLK', 'Martin Luther King', 'a'),
         ('MS', 'Middle School', 'ml'),
         ('MT', 'Mount', 'fm'),
         ('MT', 'Mountain', 'l'),
-        ('MTN', 'Mountain', ),
+        ('MTN', 'Mountain', 'a'),
         ('NFD', 'Nation Forest Development Road', ),
         ('NO', 'Number', ),  # 'Pacific Grove No 4 Homeowners Association Trails'
         ('PED', 'Pedestrian', 'a'),
@@ -110,8 +110,8 @@ class StreetNameExpander(object):
         ('RR', 'Railroad', 'ml'),  # not at start
         ('ST', 'Saint', 'fm'),
         ('TC', 'Transit Center', 'a'),
-        ('US', 'United States', ),
-        ('VA', 'Veteran Affairs')
+        ('US', 'United States', 'a'),
+        ('VA', 'Veteran Affairs', )
     ]
 
     def __init__(self, delimiter='-', separators=(' ', '/'), special_cases=None):
