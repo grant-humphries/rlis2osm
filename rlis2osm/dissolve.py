@@ -12,6 +12,10 @@ from rlis2osm.data import RlisPaths
 start_time = time()
 
 
+# this may help in determining how to merge connected segments with
+# common attribute with python, replicating what is done with postgis
+# below: http://gis.stackexchange.com/questions/61474/
+
 class WayDissolver(object):
 
     # TODO remove opening and closing of shapefile and jsut feed the
