@@ -1,29 +1,5 @@
 import re
 
-from titlecase import set_small_word_list, titlecase, SMALL
-
-
-SPECIAL_CASE = [
-    # names
-    ('AM', 'Archibald M', 'fm'),  # 'AM Kennedy Park Trails'
-    ('HM', 'Howard M', 'fm'),  # 'HM Terpenning Recreation Complex Trails - Connector'
-    ('JQ', 'John Quincy', 'fm'),  # Adams
-    ('UJ', 'Ulin J', 'fm'),  # 'UJ Hamby Park Trails'
-
-    # regional
-    ('BES', 'Bureau of Environmental Services', 'a'),  # 'Bes Water Quality Control Lab Trail'
-    ('BPA', 'Bonneville Power Administration', 'a'),
-    ('MAX', 'Metropolitan Area Express', 'a'),
-    ('PCC', 'Portland Community College', 'a'),
-    ('PKW', 'Peterkort Woods', 'fm'),  # 'Renaissance at Pkw Homeowners Trails'
-    ('PSU', 'Portland State University', 'a'),
-    ('SWC', 'Southwest Corridor', 'a'),  # 'Proposed Regional Swc Connector'
-    ('THPRD', 'Tualatin Hills Park & Recreation District', 'a'),
-    ('TVWD', 'Tualatin Valley Water District', 'a'),  # 'Tvwd Water Treatment Plant Trails'
-    ('WES', 'Westside Express Service', 'a'),
-    ('WSU', 'Washington State University' 'a')  # 'Wsu Campus Trails'
-]
-
 
 class StreetNameExpander(object):
     DIRECTION = {
@@ -36,6 +12,7 @@ class StreetNameExpander(object):
         'W': 'West',
         'NW': 'Northwest',
 
+        # *bound
         'NB': 'Northbound',
         'EB': 'Eastbound',
         'SB': 'Southbound',
@@ -85,33 +62,29 @@ class StreetNameExpander(object):
     # columns are abbreviation, expansion, allows positions
     BASENAME = [
         ('ASSN', 'Association', 'a'),
-        ('CC', 'Community College', ),
-        ('CO', 'County', ),
+        ('CC', 'Community College', 'ml'),
         ('ES', 'Elementary School', 'ml'),
-        ('ESL', 'Elementary School', 'ml'),
         ('FT', 'Foot', 'fm'),
         ('HOA', 'Homeowners Association', 'a'),
         ('HOSP', 'Hospital', 'a'),
         ('HMWRS', 'Homeowners', 'a'),
-        ('INC', 'Incorporated', ),
-        ('JR', 'Junior', ),
-        ('LDS', 'Latter Day Saints', ),  # 'Lds Trails'
-        ('LLC', 'Limited Liability Company', ),  # 'Orenco Gardens Llc Park Trails'
-        ('MED', 'Medical', ),
+        ('INC', 'Incorporated', 'ml'),
+        ('JR', 'Junior', 'a'),
+        ('LDS', 'Latter Day Saints', ),
+        ('LLC', 'Limited Liability Company', ),
+        ('MED', 'Medical', 'ml'),
         ('MLK', 'Martin Luther King', 'a'),
         ('MS', 'Middle School', 'ml'),
         ('MT', 'Mount', 'fm'),
         ('MT', 'Mountain', 'l'),
         ('MTN', 'Mountain', 'a'),
-        ('NFD', 'Nation Forest Development Road', ),
-        ('NO', 'Number', ),  # 'Pacific Grove No 4 Homeowners Association Trails'
+        ('NFD', 'Nation Forest Development Road', 'a'),
         ('PED', 'Pedestrian', 'a'),
-        ('ROW', 'Right of Way', ),  # 'Fanno Creek Trail at Oregon Electric ROW', issue with type: Row?
-        ('RR', 'Railroad', 'ml'),  # not at start
-        ('ST', 'Saint', 'fm'),
+        ('RR', 'Railroad', 'ml'),
+        ('ST', 'Saint', 'f'),
         ('TC', 'Transit Center', 'a'),
         ('US', 'United States', 'a'),
-        ('VA', 'Veteran Affairs', )
+        ('VA', 'Veteran Affairs', 'f')
     ]
 
     def __init__(self, delimiter='-', separators=(' ', '/'), special_cases=None):
@@ -124,11 +97,7 @@ class StreetNameExpander(object):
         self.delimiter = delimiter
         self.separators = separators
         self.special_cases = special_cases
-
         self.expander = self._prep_expander()
-
-        # TODO consider handling case changes outside of this class
-        self.tcase_callback = customize_titlecase()
 
     def _prep_expander(self):
         combo_dir = {a: x for a, x in self.DIRECTION.items() if len(a) > 1}
@@ -215,37 +184,22 @@ class StreetNameExpander(object):
         return self.DIRECTION.get(direct.upper(), direct)
 
 
-def customize_titlecase():
+# Special Case Incorrect Expansions
+# STREETNAME
+# 'FT OF N HOLLADAY': 'N' won't be expanded to North
+# 'US GRANT': should be Ulysses S; will be United States
+# "MT ST HELENS" - will be 'mount street helens'
+# "OLD ST HELENS"
+# SW MAX CT - will be metropolitan area express
 
-    # don't lowercase 'v', do lowercase 'with'
-    small = SMALL.replace('|v\.?|', '|')
-    small = '{}|with'.format(small)
-    set_small_word_list(small)
+# TRAILNAME
+# 'Gardenia St - E St Connector': E will be expanded to East
+# 'Fulton CC Driveway': CC is normally community college, but here it's community center
+# ('ROW', 'Right of Way',),  # 'Fanno Creek Trail at Oregon Electric ROW', issue with type: Row?
+# "NW St Helens Rd"
+# "Proposed St Helens - Portland Regional Trail"
 
-    def number_after_letter(word, **kwargs):
-        # even though the kwargs aren't used here they are a requirement of
-        # any function supplied to titlecase as a callback
-
-        if word[0].isdigit() and word[-1].isalpha():
-            # cases like '45th'
-            if word[-2].isalpha():
-                word.lower()
-            # cases like '99W'
-            else:
-                word.upper()
-
-        return word
-
-    return number_after_letter
-
-
-# trail fields that need expansion, titlecasing
-# trailname
-# sharedname
-# systemname
-# agencyname
-
-# Unknown Abbreviation, switch back to caps
+# Unknown Abbreviations
 # SYSTEMNAME
 # 'Pbh Inc Trails', 'PBH Incorporated Trails'
 # TRAILNAME
@@ -265,11 +219,3 @@ def customize_titlecase():
 # 'Andrea Street - Mo Ccasin Connector', 'Moccasin'
 # 'West Unioin Road - 151st Place Connector', 'Union'
 # '106th - Mll Ct Connector', 'Mll' should be Mill
-
-# Special Case Incorrect Expansions
-# STREETS
-# 'FT OF N HOLLADAY': 'N' won't be expanded to North
-# 'US GRANT': should be Ulysses S; will be United States
-# TRAILS
-# 'Gardenia St - E St Connector': E will be expanded to East
-# 'Fulton CC Driveway': CC is normally community college, but here it's community center

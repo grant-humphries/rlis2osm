@@ -42,8 +42,10 @@ class StreetTranslator(object):
         2000: 'unpaved'
     }
 
-    def __init__(self, bike_tag_map):
+    def __init__(self, bike_tag_map=None):
+        # provide bike tag mapping to include bicycle tags
         self.bike_tag_map = bike_tag_map
+        self.osm_schema = self._define_schema()
 
         # rlis streets fields
         self.direction = None
@@ -63,6 +65,30 @@ class StreetTranslator(object):
         self.name = None
         self.tunnel = None
 
+    def _define_schema(self):
+        schema = OrderedDict([
+            ('access', 'Str'),
+            ('bridge', 'Str'),
+            ('description', 'Str'),
+            ('highway', 'Str'),
+            ('layer', 'Int'),
+            ('name', 'Str'),
+            ('service', 'Str'),
+            ('surface', 'Str'),
+            ('tunnel', 'Str')
+        ])
+
+        if self.bike_tag_map:
+            bike_fields = {
+                'bicycle': 'Str',
+                'cycleway': 'Str',
+                'RLIS:bicycle': 'Str'
+            }
+            schema.update(bike_fields)
+            schema = OrderedDict((sorted(schema.items())))
+
+        return schema
+
     def translate_streets(self, attributes):
         self.local_id = attributes['LOCALID']
         self.type = attributes['TYPE']
@@ -77,22 +103,29 @@ class StreetTranslator(object):
 
         self._set_name_highway_desc()
         self._set_bridge_layer_tunnel()
-        bike_tags = self.bike_tag_map.get(self.local_id, dict())
 
         tags = OrderedDict([
             ('access', self.ACCESS_MAP.get(self.type)),
-            ('bicycle', bike_tags.get('bicycle')),
             ('bridge', self.bridge),
-            ('cycleway', bike_tags.get('cycleway')),
             ('description', self.description),
             ('highway', self.highway),
             ('layer', self.layer),
             ('name', self.name),
             ('service', self.SERVICE_MAP.get(self.type)),
             ('surface', self.SURFACE_MAP.get(self.type)),
-            ('tunnel', self.tunnel),
-            ('RLIS:bicycle', bike_tags.get('rlis_bicycle')),
+            ('tunnel', self.tunnel)
         ])
+
+        # add bike tags if map provided
+        if self.bike_tag_map:
+            bike_tags = {
+                'bicycle': None,
+                'cycleway': None,
+                'RLIS:bicycle': None
+            }
+            bike_tags = self.bike_tag_map.get(self.local_id, bike_tags)
+            tags.update(bike_tags)
+            tags = OrderedDict(sorted(tags.items()))
 
         return tags
 
@@ -179,11 +212,11 @@ def get_bike_tag_map(bike_feats):
         if bike_there == 'CA':
             rlis_bicycle = 'caution_area'
 
-        bike_tag_map[bike_id] = dict(
-            bicycle=bicycle,
-            cycleway=cycleway,
-            rlis_bicycle=rlis_bicycle
-        )
+        bike_tag_map[bike_id] = {
+            'bicycle': bicycle,
+            'cycleway': cycleway,
+            'RLIS:bicycle': rlis_bicycle
+        }
 
     return bike_tag_map
 
