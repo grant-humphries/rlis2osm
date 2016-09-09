@@ -1,6 +1,15 @@
 import sys
 from argparse import ArgumentParser
 
+from rlis2osm.data import RlisPaths
+from rlis2osm.expand import StreetNameExpander
+from rlis2osm.translate import get_bike_tag_map, StreetTranslator, \
+    TrailsTranslator
+
+def process_combine_features(paths):
+    pass
+
+
 
 def process_options():
     parser = ArgumentParser()
@@ -20,6 +29,7 @@ def process_options():
 def main():
 
     opts = process_options()
+    paths = RlisPaths()
 
     # module execution order: data, expand, translate, combine, dissolve, ogr2osm
 

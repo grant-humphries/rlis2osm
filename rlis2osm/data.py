@@ -2,9 +2,12 @@ import os
 import urllib2
 from datetime import datetime
 from inspect import getsourcefile
+from logging import getLogger
 from os.path import abspath, basename, dirname, exists, getmtime, isdir, \
     join, splitext
 from posixpath import join as urljoin
+
+log = getLogger(__name__)
 
 RLIS_URL = 'http://library.oregonmetro.gov/rlisdiscovery'
 RLIS_TERMS = 'http://rlisdiscovery.oregonmetro.gov/view/terms.htm'
@@ -34,10 +37,6 @@ class RlisPaths(object):
 
         if not exists(self.dst_dir):
             os.makedirs(self.dst_dir)
-
-    # TODO: flesh this idea out
-    def set_last_path(self, last_path):
-        self.last_path = last_path
 
     def _get_source_dir(self, src_dir):
         if src_dir:
@@ -130,10 +129,10 @@ def download_with_progress(url, write_dir):
     file_size_dl = 0
     block_sz = 8192
 
-    print '\nDownload Info:'
-    print 'file name: {} '.format(file_name)
-    print 'target directory: {}'.format(write_dir)
-    print 'file size: {:,} bytes'.format(file_size)
+    log.info('\nDownload Metadata:'
+             '\nfile name: {}'
+             '\ntarget directory: {}'
+             '\nfile size: {:,} bytes'.format(file_name, write_dir, file_size))
 
     with open(file_path, 'wb') as file_:
 

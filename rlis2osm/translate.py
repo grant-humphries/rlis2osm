@@ -267,7 +267,7 @@ class TrailsTranslator(object):
         if self.on_str_bike == 'Yes' \
                 or self.status == 'Conceptual' \
                 or self.trl_surface == 'Water':
-            return None
+            return {'message': 'this feature should be dropped'}
 
         self._set_highway_mode()
         self._adjust_names()
