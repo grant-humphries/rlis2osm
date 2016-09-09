@@ -44,6 +44,7 @@ class WayDissolver(object):
                 ))
 
         ways.close()
+        return self.dst_path
 
     def _determine_way_groups(self):
         node_way_map, way_nodes = self._map_end_pts_to_ways()
