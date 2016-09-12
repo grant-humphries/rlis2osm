@@ -69,22 +69,22 @@ class StreetTranslator(object):
 
     def _define_fields(self):
         fields = OrderedDict([
-            ('access', 'Str'),
-            ('bridge', 'Str'),
-            ('description', 'Str'),
-            ('highway', 'Str'),
-            ('layer', 'Int'),
-            ('name', 'Str'),
-            ('service', 'Str'),
-            ('surface', 'Str'),
-            ('tunnel', 'Str')
+            ('access', 'str'),
+            ('bridge', 'str'),
+            ('description', 'str'),
+            ('highway', 'str'),
+            ('layer', 'int'),
+            ('name', 'str'),
+            ('service', 'str'),
+            ('surface', 'str'),
+            ('tunnel', 'str')
         ])
 
         if self.bike_tag_map:
             self.BIKE_FIELDS = {
-                'bicycle': 'Str',
-                'cycleway': 'Str',
-                'RLIS:bicycle': 'Str'
+                'bicycle': 'str',
+                'cycleway': 'str',
+                'RLIS:bicycle': 'str'
             }
             fields.update(self.BIKE_FIELDS)
             fields = OrderedDict((sorted(fields.items())))
@@ -254,22 +254,22 @@ class TrailsTranslator(object):
     # TODO get rid of rlis specific tags, try to capture the info as a
     # part of the osm standard
     OSM_FIELDS = OrderedDict([
-        ('abandoned:highway', 'Str'),
-        ('access', 'Str'),
-        ('alt_name', 'Str'),
-        ('bicycle', 'Str'),
-        ('construction', 'Str'),
-        ('est_width', 'Float'),
-        ('fee', 'Str'),
-        ('foot', 'Str'),
-        ('highway', 'Str'),
-        ('horse', 'Str'),
-        ('name', 'Str'),
-        ('operator', 'Str'),
-        ('proposed', 'Str'),
-        ('surface', 'Str'),
-        ('wheelchair', 'Str'),
-        ('RLIS:system_name', 'Str')
+        ('abandoned:highway', 'str'),
+        ('access', 'str'),
+        ('alt_name', 'str'),
+        ('bicycle', 'str'),
+        ('construction', 'str'),
+        ('est_width', 'float'),
+        ('fee', 'str'),
+        ('foot', 'str'),
+        ('highway', 'str'),
+        ('horse', 'str'),
+        ('name', 'str'),
+        ('operator', 'str'),
+        ('proposed', 'str'),
+        ('surface', 'str'),
+        ('wheelchair', 'str'),
+        ('RLIS:system_name', 'str')
     ])
 
     def __init__(self):

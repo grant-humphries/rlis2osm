@@ -70,8 +70,8 @@ class StreetNameExpander(object):
         ('HMWRS', 'Homeowners', 'a'),
         ('INC', 'Incorporated', 'ml'),
         ('JR', 'Junior', 'a'),
-        ('LDS', 'Latter Day Saints', ),
-        ('LLC', 'Limited Liability Company', ),
+        ('LDS', 'Latter Day Saints', 'a'),
+        ('LLC', 'Limited Liability Company', 'a'),
         ('MED', 'Medical', 'ml'),
         ('MLK', 'Martin Luther King', 'a'),
         ('MS', 'Middle School', 'ml'),
@@ -108,6 +108,7 @@ class StreetNameExpander(object):
         # first, middle and last refer to the position of the word in
         # name that is being expanded
         f_dict, m_dict, l_dict = {}, {}, {}
+
         for k, v, placement in self.BASENAME:
             # a = any, f = first, m = middle, l = last
             for p in placement:
@@ -130,18 +131,10 @@ class StreetNameExpander(object):
         l_list = [self.DIRECTION, self.TYPE, l_dict]
 
         return {
-            'first': self._merge_dicts(*f_list),
-            'middle': self._merge_dicts(*m_list),
-            'last': self._merge_dicts(*l_list)
+            'first': merge_dicts(*f_list),
+            'middle': merge_dicts(*m_list),
+            'last': merge_dicts(*l_list)
         }
-
-    def _merge_dicts(*dict_args):
-        master_dict = dict()
-
-        for dict_ in dict_args:
-            master_dict.update(dict_)
-
-        return master_dict
 
     def basename(self, name):
         # remove any periods and split at delimiter
@@ -179,37 +172,50 @@ class StreetNameExpander(object):
         return self.delimiter.join([''.join(wl) for wl in part_list])
 
     def type(self, street_type):
-        return self.TYPE.get(street_type.upper(), street_type)
+        # input must be a string so that upper doesn't throw an error
+        str_street_type = street_type or ''
+        return self.TYPE.get(str_street_type.upper(), street_type)
 
     def direction(self, direct):
-        return self.DIRECTION.get(direct.upper(), direct)
+        str_direct = stringify(direct)
+        return self.DIRECTION.get(str_direct.upper(), direct)
+
+
+def merge_dicts(*dict_args):
+    master_dict = dict()
+
+    for dict_ in dict_args:
+        master_dict.update(dict_)
+
+    return master_dict
+
+
+def stringify(val):
+    if val is None:
+        return ''
+    else:
+        return str(val)
 
 
 # Special Case Incorrect Expansions
 # STREETNAME
 # 'FT OF N HOLLADAY': 'N' won't be expanded to North
 # 'US GRANT': should be Ulysses S; will be United States
-# "MT ST HELENS" - will be 'mount street helens'
-# "OLD ST HELENS"
-# SW MAX CT - will be metropolitan area express
+# 'MT ST HELENS', 'OLD ST HELENS' - 'ST' will be 'Street' not 'Saint'
+# 'SW MAX CT' - will be MAX will be Metropolitan Area Express
 
 # TRAILNAME
 # 'Gardenia St - E St Connector': E will be expanded to East
 # 'Fulton CC Driveway': CC is normally community college, but here it's community center
 # ('ROW', 'Right of Way',),  # 'Fanno Creek Trail at Oregon Electric ROW', issue with type: Row?
-# "NW St Helens Rd"
-# "Proposed St Helens - Portland Regional Trail"
+# 'NW St Helens Rd', 'Proposed St Helens - Portland Regional Trail', Street/Saint problem
 
 # Unknown Abbreviations
 # SYSTEMNAME
-# 'Pbh Inc Trails', 'PBH Incorporated Trails'
+# 'PBH Incorporated Trails'
 # TRAILNAME
-# 'Faof Canberra Trail', 'FAOF Canberra Trail'
-# 'Tbbv Path', 'TBBV Path'
-
-# Grammar Fixes, this might able to be handled by the titlecase module
-# AGENCYNAME
-# '(^|\s|-)Trimet(-|\s|$)', '\1TriMet\2'
+# 'FAOF Canberra Trail'
+# 'TBBV Path'
 
 # Typo Fixes - these should be reported to Metro
 # SYSTEMNAME

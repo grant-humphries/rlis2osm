@@ -8,34 +8,34 @@ from shapely.geometry import mapping, shape
 from shapely.ops import unary_union
 
 from rlis2osm.data import RlisPaths
+from rlis2osm.utils import zip_path
 
 start_time = time()
 
 
 class WayDissolver(object):
 
-    def __init__(self, src_path, dst_path, fields=None, field_exclude=False):
-        self.src_path = src_path
-        self.dst_path = dst_path
+    def __init__(self, fields=None, field_exclude=False):
+        self.ways = None
         self.fields = self._define_filter_fields(fields, field_exclude)
 
-    def dissolve_ways(self):
+    def dissolve_ways(self, src_path, dst_path):
+        self.ways = fiona.open(**zip_path(src_path))
         way_groups = self._determine_way_groups()
 
-        ways = fiona.open(self.src_path)
-        metadata = ways.meta.copy()
+        metadata = self.ways.meta.copy()
         meta_fields = metadata['schema']['properties']
         self._filter_tags(meta_fields)
 
-        with fiona.open(self.dst_path, 'w', **metadata) as dissolve_shp:
+        with fiona.open(dst_path, 'w', **metadata) as dissolve_shp:
             for group in way_groups:
                 geom_list = list()
                 for way_id in group:
-                    feat = ways[way_id]
+                    feat = self.ways[way_id]
                     geom = shape(feat['geometry'])
                     geom_list.append(geom)
 
-                group_tags = ways[group[0]]['properties']
+                group_tags = self.ways[group[0]]['properties']
                 dissolve_geom = unary_union(geom_list)
                 dissolve_tags = self._filter_tags(group_tags)
                 dissolve_shp.write(dict(
@@ -43,8 +43,8 @@ class WayDissolver(object):
                     properties=dissolve_tags
                 ))
 
-        ways.close()
-        return self.dst_path
+        self.ways.close()
+        return dst_path
 
     def _determine_way_groups(self):
         node_way_map, way_nodes = self._map_end_pts_to_ways()
@@ -56,8 +56,7 @@ class WayDissolver(object):
         # be done on this collection and it reaches a large size
         assigned = LogSet()
         way_groups = list()
-        ways = fiona.open(self.src_path)
-        for fid, feat in ways.items():
+        for fid, feat in self.ways.items():
             if fid in assigned:
                 continue
 
@@ -74,7 +73,7 @@ class WayDissolver(object):
                     if connect_id in assigned:
                         continue
 
-                    connect_way = ways[connect_id]
+                    connect_way = self.ways[connect_id]
                     connect_tags = self._filter_tags(connect_way['properties'])
 
                     if tags == connect_tags:
@@ -88,7 +87,6 @@ class WayDissolver(object):
 
             way_groups.append(group)
 
-        ways.close()
         return way_groups
 
     def _define_filter_fields(self, filter_fields, exclude):
@@ -121,8 +119,7 @@ class WayDissolver(object):
         node_way_map = defaultdict(list)
         way_nodes = dict()
 
-        ways = fiona.open(self.src_path)
-        for fid, feat in ways.items():
+        for fid, feat in self.ways.items():
             geom = shape(feat['geometry'])
             coords = list(geom.coords)
             f_node = coords[0]
@@ -141,7 +138,6 @@ class WayDissolver(object):
                 't': node_id_map[t_node]
             }
 
-        ways.close()
         return node_way_map, way_nodes
 
     def _filter_tags(self, tags):

@@ -1,15 +1,21 @@
+import os
 import sys
 from argparse import ArgumentParser
 from collections import OrderedDict
+from os.path import exists
 
 import fiona
+from fiona.crs import from_epsg
 from titlecase import set_small_word_list, titlecase, SMALL
 
-from rlis2osm.data import RlisPaths
+from rlis2osm import data
+from rlis2osm.dissolve import WayDissolver
 from rlis2osm.expand import StreetNameExpander
 from rlis2osm.translate import get_bike_tag_map, StreetTranslator, \
     TrailsTranslator
+from rlis2osm.utils import zip_path
 
+RLIS_EPSG = 2913
 RLIS_SPECIAL = [
     # names
     ('AM', 'Archibald M', 'fm'),  # 'AM Kennedy'
@@ -27,7 +33,7 @@ RLIS_SPECIAL = [
     ('THPRD', 'Tualatin Hills Park & Recreation District', 'a'),
     ('TVWD', 'Tualatin Valley Water District', 'a'),
     ('WES', 'Westside Express Service', 'a'),
-    ('WSU', 'Washington State University' 'a'),
+    ('WSU', 'Washington State University', 'a'),
 
     # rlis specific
     ('CO', 'County', 'f')
@@ -49,15 +55,20 @@ def rlis2osm(paths):
     street_filler = {k: None for k in s_fields if k not in t_fields}
     trail_filler = {k: None for k in t_fields if k not in s_fields}
 
-    streets = fiona.open(paths.streets)
-    trails = fiona.open(paths.trails)
+    streets = fiona.open(**zip_path(paths.streets))
+    trails = fiona.open(**zip_path(paths.trails))
 
-    # get projection info, feat type, etc from streets then modify schema
+    # file format is switched to geojson because the field names that
+    # need to be used for osm tags violate .dbf constraints, crs is
+    # redefined because fiona doesn't tie rlis spatial ref info to 2913
     metadata = streets.meta.copy()
+    metadata['crs'] = from_epsg(RLIS_EPSG)
+    metadata['driver'] = 'GeoJSON'
     metadata['schema']['properties'] = combined_fields
-    rlis_epsg = metadata['crs']['init'].split(':')[0]
 
-    # TODO get epsg from schema to feed to ogr2osm
+    # fiona can't overwrite geojson like it can shapefiles
+    if exists(paths.combined):
+        os.remove(paths.combined)
 
     with fiona.open(paths.combined, 'w', **metadata) as combined:
         for s in streets:
@@ -69,8 +80,9 @@ def rlis2osm(paths):
             attrs['FTYPE'] = expander.type(attrs['FTYPE'])
             attrs['DIRECTION'] = expander.direction(attrs['DIRECTION'])
 
-            # convert attributes to osm and title case names, titlecase only
-            # works correcly when supplied a lowercase string
+            # street names in rlis are in all caps and thus need to be
+            # title-cased, the titlecase package works better will
+            # lower case input
             tags = street_trans.translate(attrs)
             tags['name'] = titlecase(tags['name'].lower(), callback=tc_callback)
             tags.update(street_filler)
@@ -84,8 +96,7 @@ def rlis2osm(paths):
             # expand abbreviations for and title case all name fields
             for name in ('AGENCY', 'SHARED', 'SYSTEM', 'TRAIL'):
                 name_key = '{}NAME'.format(name)
-                exp_name = expander.basename(attrs[name_key]).lower()
-                attrs[name_key] = titlecase(exp_name, callback=tc_callback)
+                attrs[name_key] = expander.basename(attrs[name_key])
 
             tags = trail_trans.translate(attrs)
             tags.update(trail_filler)
@@ -95,6 +106,11 @@ def rlis2osm(paths):
 
     streets.close()
     trails.close()
+
+    # TODO: dissolve, ogr2osm
+    dissolver = WayDissolver()
+    dissolver.dissolve_ways(paths.combined, paths.dissolved)
+
 
 
 def customize_titlecase():
@@ -124,16 +140,25 @@ def customize_titlecase():
 def process_options(args):
     parser = ArgumentParser()
     parser.add_argument(
-        '-d', '--destination_path',
-        help=''
+        '-d', '--destination_directory',
+        default=None,
+        dest='dst_dir',
+        help='write location finished product'
     )
     parser.add_argument(
         '-r', '--refresh_data',
-        help=''
+        default=False,
+        dest='refresh',
+        type=bool,
+        help='if set to true existing rlis data will be overwritten with the '
+             "latest version from the Metro's website"
     )
     parser.add_argument(
-        '-s', '--source_path',
-        help='file path at which datasets will be downloaded and written to'
+        '-s', '--source_directory',
+        default=None,
+        dest='src_dir',
+        help='location of source rlis shapefiles if they exist, else write '
+             'location for downloaded datasets'
     )
 
     options = parser.parse_args(args)
@@ -141,11 +166,13 @@ def process_options(args):
 
 
 def main():
-
     args = sys.argv[1:]
     opts = process_options(args)
 
-    paths = RlisPaths()
+    paths = data.main(
+        src_dir=opts.src_dir,
+        dst_dir=opts.dst_dir,
+        refresh=opts.refresh)
     rlis2osm(paths)
 
     # module execution order: data, expand, translate, combine, dissolve, ogr2osm
