@@ -115,6 +115,7 @@ class StreetNameExpander(object):
                     f_dict[k] = v
                     m_dict[k] = v
                     l_dict[k] = v
+                    break
                 elif p == 'f':
                     f_dict[k] = v
                 elif p == 'm':

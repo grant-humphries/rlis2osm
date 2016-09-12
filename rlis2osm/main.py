@@ -1,5 +1,6 @@
 import sys
 from argparse import ArgumentParser
+from collections import OrderedDict
 
 import fiona
 from titlecase import set_small_word_list, titlecase, SMALL
@@ -35,17 +36,26 @@ RLIS_SPECIAL = [
 
 def rlis2osm(paths):
     expander = StreetNameExpander(special_cases=RLIS_SPECIAL)
+    tc_callback = customize_titlecase()
+
     bike_routes = fiona.open(paths.bikes)
     bike_mapping = get_bike_tag_map(bike_routes)
     street_trans = StreetTranslator(bike_mapping)
     trail_trans = TrailsTranslator()
+
+    s_fields = street_trans.OSM_FIELDS
+    t_fields = trail_trans.OSM_FIELDS
+    combined_fields = OrderedDict(sorted(s_fields.items() + t_fields.items()))
+    street_filler = {k: None for k in s_fields if k not in t_fields}
+    trail_filler = {k: None for k in t_fields if k not in s_fields}
 
     streets = fiona.open(paths.streets)
     trails = fiona.open(paths.trails)
 
     # get projection info, feat type, etc from streets then modify schema
     metadata = streets.meta.copy()
-    metadata['schema']['properties'] =
+    metadata['schema']['properties'] = combined_fields
+    rlis_epsg = metadata['crs']['init'].split(':')[0]
 
     # TODO get epsg from schema to feed to ogr2osm
 
@@ -59,9 +69,11 @@ def rlis2osm(paths):
             attrs['FTYPE'] = expander.type(attrs['FTYPE'])
             attrs['DIRECTION'] = expander.direction(attrs['DIRECTION'])
 
-            # convert attributes to osm and title case names
-            tags = street_trans.translate_streets(attrs)
-            tags['name'] = titlecase(tags['name'], callback=tc_callback)
+            # convert attributes to osm and title case names, titlecase only
+            # works correcly when supplied a lowercase string
+            tags = street_trans.translate(attrs)
+            tags['name'] = titlecase(tags['name'].lower(), callback=tc_callback)
+            tags.update(street_filler)
             s['properties'] = tags
 
             combined.write(s)
@@ -72,28 +84,17 @@ def rlis2osm(paths):
             # expand abbreviations for and title case all name fields
             for name in ('AGENCY', 'SHARED', 'SYSTEM', 'TRAIL'):
                 name_key = '{}NAME'.format(name)
-                exp_name = expander.basename(attrs[name_key])
+                exp_name = expander.basename(attrs[name_key]).lower()
                 attrs[name_key] = titlecase(exp_name, callback=tc_callback)
 
-            t['properties'] = trail_trans.translate_trails(attrs)
+            tags = trail_trans.translate(attrs)
+            tags.update(trail_filler)
+            t['properties'] = tags
 
             combined.write(t)
 
-
-
-def process_options():
-    parser = ArgumentParser()
-    parser.add_argument(
-        '-d', '--destination_path'
-    )
-    parser.add_argument(
-        '-r', '--refresh_data',
-    )
-
-    parser.add_argument(
-        '-s', '--source_path',
-        help='file path at which datasets will be downloaded and written to'
-    )
+    streets.close()
+    trails.close()
 
 
 def customize_titlecase():
@@ -120,10 +121,32 @@ def customize_titlecase():
     return number_after_letter
 
 
+def process_options(args):
+    parser = ArgumentParser()
+    parser.add_argument(
+        '-d', '--destination_path',
+        help=''
+    )
+    parser.add_argument(
+        '-r', '--refresh_data',
+        help=''
+    )
+    parser.add_argument(
+        '-s', '--source_path',
+        help='file path at which datasets will be downloaded and written to'
+    )
+
+    options = parser.parse_args(args)
+    return options
+
+
 def main():
 
-    opts = process_options()
+    args = sys.argv[1:]
+    opts = process_options(args)
+
     paths = RlisPaths()
+    rlis2osm(paths)
 
     # module execution order: data, expand, translate, combine, dissolve, ogr2osm
 

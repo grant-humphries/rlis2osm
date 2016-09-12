@@ -45,7 +45,9 @@ class StreetTranslator(object):
     def __init__(self, bike_tag_map=None):
         # provide bike tag mapping to include bicycle tags
         self.bike_tag_map = bike_tag_map
-        self.osm_schema = self._define_schema()
+        self.BIKE_FIELDS = None
+        self.OSM_FIELDS = None
+        self._define_fields()
 
         # rlis streets fields
         self.direction = None
@@ -65,8 +67,8 @@ class StreetTranslator(object):
         self.name = None
         self.tunnel = None
 
-    def _define_schema(self):
-        schema = OrderedDict([
+    def _define_fields(self):
+        fields = OrderedDict([
             ('access', 'Str'),
             ('bridge', 'Str'),
             ('description', 'Str'),
@@ -79,17 +81,17 @@ class StreetTranslator(object):
         ])
 
         if self.bike_tag_map:
-            bike_fields = {
+            self.BIKE_FIELDS = {
                 'bicycle': 'Str',
                 'cycleway': 'Str',
                 'RLIS:bicycle': 'Str'
             }
-            schema.update(bike_fields)
-            schema = OrderedDict((sorted(schema.items())))
+            fields.update(self.BIKE_FIELDS)
+            fields = OrderedDict((sorted(fields.items())))
 
-        return schema
+        self.OSM_FIELDS = fields
 
-    def translate_streets(self, attributes):
+    def translate(self, attributes):
         self.local_id = attributes['LOCALID']
         self.type = attributes['TYPE']
         
@@ -104,28 +106,23 @@ class StreetTranslator(object):
         self._set_name_highway_desc()
         self._set_bridge_layer_tunnel()
 
-        tags = OrderedDict([
-            ('access', self.ACCESS_MAP.get(self.type)),
-            ('bridge', self.bridge),
-            ('description', self.description),
-            ('highway', self.highway),
-            ('layer', self.layer),
-            ('name', self.name),
-            ('service', self.SERVICE_MAP.get(self.type)),
-            ('surface', self.SURFACE_MAP.get(self.type)),
-            ('tunnel', self.tunnel)
-        ])
+        tags = {
+            'access': self.ACCESS_MAP.get(self.type),
+            'bridge': self.bridge,
+            'description': self.description,
+            'highway': self.highway,
+            'layer': self.layer,
+            'name': self.name,
+            'service': self.SERVICE_MAP.get(self.type),
+            'surface': self.SURFACE_MAP.get(self.type),
+            'tunnel': self.tunnel
+        }
 
         # add bike tags if map provided
         if self.bike_tag_map:
-            bike_tags = {
-                'bicycle': None,
-                'cycleway': None,
-                'RLIS:bicycle': None
-            }
+            bike_tags = {k: None for k in self.BIKE_FIELDS}
             bike_tags = self.bike_tag_map.get(self.local_id, bike_tags)
             tags.update(bike_tags)
-            tags = OrderedDict(sorted(tags.items()))
 
         return tags
 
@@ -254,6 +251,27 @@ class TrailsTranslator(object):
         'Not Accessible': 'no'
     }
 
+    # TODO get rid of rlis specific tags, try to capture the info as a
+    # part of the osm standard
+    OSM_FIELDS = OrderedDict([
+        ('abandoned:highway', 'Str'),
+        ('access', 'Str'),
+        ('alt_name', 'Str'),
+        ('bicycle', 'Str'),
+        ('construction', 'Str'),
+        ('est_width', 'Float'),
+        ('fee', 'Str'),
+        ('foot', 'Str'),
+        ('highway', 'Str'),
+        ('horse', 'Str'),
+        ('name', 'Str'),
+        ('operator', 'Str'),
+        ('proposed', 'Str'),
+        ('surface', 'Str'),
+        ('wheelchair', 'Str'),
+        ('RLIS:system_name', 'Str')
+    ])
+
     def __init__(self):
         # rlis trail attributes
         self.accessible = None
@@ -279,7 +297,7 @@ class TrailsTranslator(object):
         self.horse = None
         self.proposed = None
 
-    def translate_trails(self, attributes):
+    def translate(self, attributes):
         self.accessible = attributes['ACCESSIBLE']
         self.agency_name = attributes['AGENCYNAME']
         self.equestrian = attributes['EQUESTRIAN']
@@ -300,7 +318,11 @@ class TrailsTranslator(object):
         if self.on_str_bike == 'Yes' \
                 or self.status == 'Conceptual' \
                 or self.trl_surface == 'Water':
-            return {'message': 'this feature should be dropped'}
+            return {
+                'drop': True,
+                'message': 'this trail feature is either a street, a waterway'
+                           'or a conceptual trail and should be dropped'
+            }
 
         self._set_highway_mode()
         self._adjust_names()
@@ -331,6 +353,9 @@ class TrailsTranslator(object):
         permissions and trail width and set related highway tags that are
         sometimes transferred its value
         """
+
+        # TODO use the attribute SYSTEMTYPE in the determination of the
+        # highway value
 
         # logic below relies on est with first being set here
         self._set_est_width(0.25)
