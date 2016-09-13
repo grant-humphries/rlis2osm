@@ -145,8 +145,9 @@ class StreetTranslator(object):
         # residential, but there is no name downgrade to service
         if self.highway == 'residential' and not self.name:
             self.highway = 'service'
-        # motorway_link's have descriptions, not names, via osm convention
-        elif self.highway == 'motorway_link':
+        # connector streets aka 'links' have descriptions, not names,
+        # via osm convention
+        elif '_link' in self.highway:
             self.description = self.name
             self.name = None
 

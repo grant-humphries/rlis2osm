@@ -137,7 +137,7 @@ class StreetNameExpander(object):
         }
 
     def basename(self, name):
-        if not name or not isinstance(name, str):
+        if not name:
             return name
 
         # remove any periods and split at delimiter
