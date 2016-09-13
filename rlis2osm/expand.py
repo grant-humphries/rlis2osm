@@ -137,6 +137,9 @@ class StreetNameExpander(object):
         }
 
     def basename(self, name):
+        if not name or not isinstance(name, str):
+            return name
+
         # remove any periods and split at delimiter
         parts = name.replace('.', '').split(self.delimiter)
         part_list = list()
@@ -172,13 +175,16 @@ class StreetNameExpander(object):
         return self.delimiter.join([''.join(wl) for wl in part_list])
 
     def type(self, street_type):
-        # input must be a string so that upper doesn't throw an error
-        str_street_type = street_type or ''
-        return self.TYPE.get(str_street_type.upper(), street_type)
+        return self._simple_mapping(self.TYPE, street_type)
 
-    def direction(self, direct):
-        str_direct = stringify(direct)
-        return self.DIRECTION.get(str_direct.upper(), direct)
+    def direction(self, direction):
+        return self._simple_mapping(self.DIRECTION, direction)
+
+    @staticmethod
+    def _simple_mapping(mapping, value):
+        # input must be a string so that upper doesn't throw an error
+        string = '' if value is None else str(value)
+        return mapping.get(string.upper(), value)
 
 
 def merge_dicts(*dict_args):
@@ -188,13 +194,6 @@ def merge_dicts(*dict_args):
         master_dict.update(dict_)
 
     return master_dict
-
-
-def stringify(val):
-    if val is None:
-        return ''
-    else:
-        return str(val)
 
 
 # Special Case Incorrect Expansions

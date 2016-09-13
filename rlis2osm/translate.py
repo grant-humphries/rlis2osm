@@ -312,7 +312,7 @@ class TrailsTranslator(object):
         self.trl_surface = attributes['TRLSURFACE']
         self.width = attributes['WIDTH']
 
-        # return a flag indicationg that the feature should be dropped
+        # return a flag indicating that the feature should be dropped
         # when meeting these criteria, on street bike segments exist in
         # the streets data so aren't needed here
         if self.on_str_bike == 'Yes' \

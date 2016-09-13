@@ -52,8 +52,8 @@ def rlis2osm(paths):
     s_fields = street_trans.OSM_FIELDS
     t_fields = trail_trans.OSM_FIELDS
     combined_fields = OrderedDict(sorted(s_fields.items() + t_fields.items()))
-    street_filler = {k: None for k in s_fields if k not in t_fields}
-    trail_filler = {k: None for k in t_fields if k not in s_fields}
+    street_filler = {k: None for k in t_fields if k not in s_fields}
+    trail_filler = {k: None for k in s_fields if k not in t_fields}
 
     streets = fiona.open(**zip_path(paths.streets))
     trails = fiona.open(**zip_path(paths.trails))
@@ -71,24 +71,25 @@ def rlis2osm(paths):
         os.remove(paths.combined)
 
     with fiona.open(paths.combined, 'w', **metadata) as combined:
-        for s in streets:
-            attrs = s['properties']
-
-            # expand abbreviations in all street name parts
-            attrs['PREFIX'] = expander.direction(attrs['PREFIX'])
-            attrs['STREETNAME'] = expander.basename(attrs['STREETNAME'])
-            attrs['FTYPE'] = expander.type(attrs['FTYPE'])
-            attrs['DIRECTION'] = expander.direction(attrs['DIRECTION'])
-
-            # street names in rlis are in all caps and thus need to be
-            # title-cased, the titlecase package works better will
-            # lower case input
-            tags = street_trans.translate(attrs)
-            tags['name'] = titlecase(tags['name'].lower(), callback=tc_callback)
-            tags.update(street_filler)
-            s['properties'] = tags
-
-            combined.write(s)
+        # for s in streets:
+        #     attrs = s['properties']
+        #
+        #     # expand abbreviations in all street name parts
+        #     attrs['PREFIX'] = expander.direction(attrs['PREFIX'])
+        #     attrs['STREETNAME'] = expander.basename(attrs['STREETNAME'])
+        #     attrs['FTYPE'] = expander.type(attrs['FTYPE'])
+        #     attrs['DIRECTION'] = expander.direction(attrs['DIRECTION'])
+        #
+        #     # street names in rlis are in all caps and thus need to be
+        #     # title-cased, the titlecase package works better will
+        #     # lower case input
+        #     tags = street_trans.translate(attrs)
+        #     name_tag = (tags['name'] or '').lower()
+        #     tags['name'] = titlecase(name_tag, callback=tc_callback)
+        #     tags.update(street_filler)
+        #     s['properties'] = tags
+        #
+        #     combined.write(s)
 
         for t in trails:
             attrs = t['properties']
@@ -96,9 +97,13 @@ def rlis2osm(paths):
             # expand abbreviations for and title case all name fields
             for name in ('AGENCY', 'SHARED', 'SYSTEM', 'TRAIL'):
                 name_key = '{}NAME'.format(name)
-                attrs[name_key] = expander.basename(attrs[name_key])
+                name_tag = (attrs[name_key] or u'').decode('cp1252')
+                attrs[name_key] = expander.basename(name_tag)
 
             tags = trail_trans.translate(attrs)
+            if 'drop' in tags:
+                continue
+
             tags.update(trail_filler)
             t['properties'] = tags
 
@@ -108,9 +113,8 @@ def rlis2osm(paths):
     trails.close()
 
     # TODO: dissolve, ogr2osm
-    dissolver = WayDissolver()
-    dissolver.dissolve_ways(paths.combined, paths.dissolved)
-
+    # dissolver = WayDissolver()
+    # dissolver.dissolve_ways(paths.combined, paths.dissolved)
 
 
 def customize_titlecase():
@@ -124,7 +128,7 @@ def customize_titlecase():
         # even though the kwargs aren't used here they are a requirement of
         # any function supplied to titlecase as a callback
 
-        if word[0].isdigit() and word[-1].isalpha():
+        if word and word[0].isdigit() and word[-1].isalpha():
             # cases like '45th'
             if word[-2].isalpha():
                 word.lower()
