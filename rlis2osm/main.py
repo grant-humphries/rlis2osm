@@ -92,23 +92,24 @@ def rlis2osm(paths):
 
             combined.write(s)
 
-        # for t in trails:
-        #     attrs = t['properties']
-        #
-        #     # expand abbreviations for and title case all name fields
-        #     for name in ('AGENCY', 'SHARED', 'SYSTEM', 'TRAIL'):
-        #         name_key = '{}NAME'.format(name)
-        #         # name_tag = (attrs[name_key] or u'').decode('cp1252')
-        #         attrs[name_key] = expander.basename(attrs[name_key])
-        #
-        #     tags = trail_trans.translate(attrs)
-        #     if 'drop' in tags:
-        #         continue
-        #
-        #     tags.update(trail_filler)
-        #     t['properties'] = tags
-        #
-        #     combined.write(t)
+        for t in trails:
+            attrs = t['properties']
+
+            # expand abbreviations for and title case all name fields,
+            # encoding is explicitly set due to Windows issues
+            for name in ('AGENCY', 'SHARED', 'SYSTEM', 'TRAIL'):
+                name_key = '{}NAME'.format(name)
+                name_tag = (attrs[name_key] or '').encode('utf8')
+                attrs[name_key] = expander.basename(name_tag)
+
+            tags = trail_trans.translate(attrs)
+            if 'drop' in tags:
+                continue
+
+            tags.update(trail_filler)
+            t['properties'] = tags
+
+            combined.write(t)
 
     streets.close()
     trails.close()
