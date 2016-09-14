@@ -15,14 +15,15 @@ start_time = time()
 
 class WayDissolver(object):
 
-    def __init__(self, fields=None, field_exclude=False):
+    def __init__(self, ):
         self.ways = None
-        self.fields = self._define_filter_fields(fields, field_exclude)
+        self.fields = None
 
-    def dissolve_ways(self, src_path, dst_path):
+    def dissolve_ways(self, src_path, dst_path, fields=None, exclude=False):
         self.ways = fiona.open(**zip_path(src_path))
-        way_groups = self._determine_way_groups()
+        self.fields = self._define_filter_fields(fields, exclude)
 
+        way_groups = self._determine_way_groups()
         metadata = self.ways.meta.copy()
         meta_fields = metadata['schema']['properties']
         self._filter_tags(meta_fields)
@@ -94,8 +95,7 @@ class WayDissolver(object):
         the fields that must match for a merge to be allowed
         """
 
-        ways = fiona.open(self.src_path)
-        fields = ways[0]['properties'].keys()
+        fields = self.ways[0]['properties'].keys()
         if filter_fields:
             for ff in filter_fields:
                 if ff not in fields:
@@ -110,7 +110,6 @@ class WayDissolver(object):
             else:
                 fields = filter_fields
 
-        ways.close()
         return fields
 
     def _map_end_pts_to_ways(self):
@@ -121,6 +120,8 @@ class WayDissolver(object):
 
         for fid, feat in self.ways.items():
             geom = shape(feat['geometry'])
+            if geom.
+
             coords = list(geom.coords)
             f_node = coords[0]
             t_node = coords[-1]
