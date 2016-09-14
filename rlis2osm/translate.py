@@ -103,6 +103,7 @@ class StreetTranslator(object):
         self.fz_level = attributes['F_ZLEV']
         self.tz_level = attributes['T_ZLEV']
 
+        self._reset_osm_tags()
         self._set_name_highway_desc()
         self._set_bridge_layer_tunnel()
 
@@ -125,6 +126,14 @@ class StreetTranslator(object):
             tags.update(bike_tags)
 
         return tags
+
+    def _reset_osm_tags(self):
+        self.bridge = None
+        self.description = None
+        self.highway = None
+        self.layer = None
+        self.name = None
+        self.tunnel = None
 
     def _set_name_highway_desc(self):
         # handle special cases and concatenate name
@@ -325,6 +334,7 @@ class TrailsTranslator(object):
                            'or a conceptual trail and should be dropped'
             }
 
+        self._reset_osm_tags()
         self._set_highway_mode()
         self._adjust_names()
 
@@ -348,6 +358,15 @@ class TrailsTranslator(object):
         }
 
         return tags
+
+    def _reset_osm_tags(self):
+        self.abandoned = None
+        self.bicycle = None
+        self.construction = None
+        self.est_width = None
+        self.foot = None
+        self.horse = None
+        self.proposed = None
 
     def _set_highway_mode(self):
         """determine value for highway and mode access tags base on mode
@@ -391,7 +410,7 @@ class TrailsTranslator(object):
         else:
             self.highway = 'footway'
 
-            if self.road_bike:
+            if self.road_bike or self.mtn_bike:
                 self.bicycle = 'yes'
 
         if self.hike == 'No':

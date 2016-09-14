@@ -81,38 +81,34 @@ def rlis2osm(paths):
             attrs['DIRECTION'] = expander.direction(attrs['DIRECTION'])
 
             # street names in rlis are in all caps and thus need to be
-            # title-cased, the titlecase package works better will
-            # lower case input
+            # title-cased, the titlecase package has special handling
+            # for all caps text and thus needs to be lower cased
             tags = street_trans.translate(attrs)
             name_tag = (tags['name'] or '').lower()
             tags['name'] = titlecase(name_tag, callback=tc_callback)
-
-            # TODO call back is causing things to not be titlecased, fix it
-            print tags['name']
-            exit()
 
             tags.update(street_filler)
             s['properties'] = tags
 
             combined.write(s)
 
-        for t in trails:
-            attrs = t['properties']
-
-            # expand abbreviations for and title case all name fields
-            for name in ('AGENCY', 'SHARED', 'SYSTEM', 'TRAIL'):
-                name_key = '{}NAME'.format(name)
-                # name_tag = (attrs[name_key] or u'').decode('cp1252')
-                attrs[name_key] = expander.basename(attrs[name_key])
-
-            tags = trail_trans.translate(attrs)
-            if 'drop' in tags:
-                continue
-
-            tags.update(trail_filler)
-            t['properties'] = tags
-
-            combined.write(t)
+        # for t in trails:
+        #     attrs = t['properties']
+        #
+        #     # expand abbreviations for and title case all name fields
+        #     for name in ('AGENCY', 'SHARED', 'SYSTEM', 'TRAIL'):
+        #         name_key = '{}NAME'.format(name)
+        #         # name_tag = (attrs[name_key] or u'').decode('cp1252')
+        #         attrs[name_key] = expander.basename(attrs[name_key])
+        #
+        #     tags = trail_trans.translate(attrs)
+        #     if 'drop' in tags:
+        #         continue
+        #
+        #     tags.update(trail_filler)
+        #     t['properties'] = tags
+        #
+        #     combined.write(t)
 
     streets.close()
     trails.close()
@@ -141,7 +137,9 @@ def customize_titlecase():
             else:
                 word.upper()
 
-        return word
+            return word
+        else:
+            return None
 
     return number_after_letter
 
