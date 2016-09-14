@@ -15,6 +15,7 @@ from rlis2osm.translate import get_bike_tag_map, StreetTranslator, \
     TrailsTranslator
 from rlis2osm.utils import zip_path
 
+RLIS_ENCODING = 'cp1252'
 RLIS_EPSG = 2913
 RLIS_SPECIAL = [
     # names
@@ -44,7 +45,7 @@ def rlis2osm(paths):
     expander = StreetNameExpander(special_cases=RLIS_SPECIAL)
     tc_callback = customize_titlecase()
 
-    bike_routes = fiona.open(**zip_path(paths.bikes))
+    bike_routes = fiona.open(encoding=RLIS_ENCODING, **zip_path(paths.bikes))
     bike_mapping = get_bike_tag_map(bike_routes)
     street_trans = StreetTranslator(bike_mapping)
     trail_trans = TrailsTranslator()
@@ -55,8 +56,8 @@ def rlis2osm(paths):
     street_filler = {k: None for k in t_fields if k not in s_fields}
     trail_filler = {k: None for k in s_fields if k not in t_fields}
 
-    streets = fiona.open(**zip_path(paths.streets))
-    trails = fiona.open(**zip_path(paths.trails))
+    streets = fiona.open(encoding=RLIS_ENCODING, **zip_path(paths.streets))
+    trails = fiona.open(encoding=RLIS_ENCODING, **zip_path(paths.trails))
 
     # file format is switched to geojson because the field names that
     # need to be used for osm tags violate .dbf constraints, crs is
@@ -99,7 +100,15 @@ def rlis2osm(paths):
             # encoding is explicitly set due to Windows issues
             for name in ('AGENCY', 'SHARED', 'SYSTEM', 'TRAIL'):
                 name_key = '{}NAME'.format(name)
-                name_tag = (attrs[name_key] or '').encode('utf8')
+
+                # # windows doesn't know how to properly encode special
+                # # characters so on that p
+                # name_tag = (attrs[name_key] or '')
+                # if os.name == 'nt':
+                #     name_tag = name_tag.encode('utf-8')
+
+                unicode_name = attrs[name_key]
+                name_tag = (attrs[name_key] or '')  # .encode('utf-8')
                 attrs[name_key] = expander.basename(name_tag)
 
             tags = trail_trans.translate(attrs)
