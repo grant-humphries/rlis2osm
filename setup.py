@@ -22,6 +22,6 @@ setup(
     ],
     license='GPL',
     long_description=open('README.md').read(),
-    packages=find_packages(),
+    packages=find_packages(exclude=['rlis2osm.tests*']),
     url='https://github.com/grant-humphries/rlis2osm'
 )

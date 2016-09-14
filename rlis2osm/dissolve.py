@@ -120,8 +120,6 @@ class WayDissolver(object):
 
         for fid, feat in self.ways.items():
             geom = shape(feat['geometry'])
-            if geom.
-
             coords = list(geom.coords)
             f_node = coords[0]
             t_node = coords[-1]

@@ -66,57 +66,57 @@ def rlis2osm(paths):
     metadata['driver'] = 'GeoJSON'
     metadata['schema']['properties'] = combined_fields
 
-    # # fiona can't overwrite geojson like it can shapefiles
-    # if exists(paths.combined):
-    #     os.remove(paths.combined)
-    #
-    # with fiona.open(paths.combined, 'w', **metadata) as combined:
-    #     for s in streets:
-    #         attrs = s['properties']
-    #
-    #         # expand abbreviations in all street name parts
-    #         attrs['PREFIX'] = expander.direction(attrs['PREFIX'])
-    #         attrs['STREETNAME'] = expander.basename(attrs['STREETNAME'])
-    #         attrs['FTYPE'] = expander.type(attrs['FTYPE'])
-    #         attrs['DIRECTION'] = expander.direction(attrs['DIRECTION'])
-    #
-    #         # street names in rlis are in all caps and thus need to be
-    #         # title-cased, the titlecase package has special handling
-    #         # for all caps text and thus needs to be lower cased
-    #         tags = street_trans.translate(attrs)
-    #         name_tag = (tags['name'] or '').lower()
-    #         tags['name'] = titlecase(name_tag, callback=tc_callback)
-    #
-    #         tags.update(street_filler)
-    #         s['properties'] = tags
-    #
-    #         combined.write(s)
-    #
-    #     for t in trails:
-    #         attrs = t['properties']
-    #
-    #         # expand abbreviations for and title case all name fields,
-    #         # encoding is explicitly set due to Windows issues
-    #         for name in ('AGENCY', 'SHARED', 'SYSTEM', 'TRAIL'):
-    #             name_key = '{}NAME'.format(name)
-    #             name_tag = (attrs[name_key] or '').encode('utf8')
-    #             attrs[name_key] = expander.basename(name_tag)
-    #
-    #         tags = trail_trans.translate(attrs)
-    #         if 'drop' in tags:
-    #             continue
-    #
-    #         tags.update(trail_filler)
-    #         t['properties'] = tags
-    #
-    #         combined.write(t)
-    #
-    # streets.close()
-    # trails.close()
+    # fiona can't overwrite geojson like it can shapefiles
+    if exists(paths.combined):
+        os.remove(paths.combined)
 
-    # TODO: dissolve, ogr2osm
-    dissolver = WayDissolver()
-    dissolver.dissolve_ways(paths.combined, paths.dissolved)
+    with fiona.open(paths.combined, 'w', **metadata) as combined:
+        # for s in streets:
+        #     attrs = s['properties']
+        #
+        #     # expand abbreviations in all street name parts
+        #     attrs['PREFIX'] = expander.direction(attrs['PREFIX'])
+        #     attrs['STREETNAME'] = expander.basename(attrs['STREETNAME'])
+        #     attrs['FTYPE'] = expander.type(attrs['FTYPE'])
+        #     attrs['DIRECTION'] = expander.direction(attrs['DIRECTION'])
+        #
+        #     # street names in rlis are in all caps and thus need to be
+        #     # title-cased, the titlecase package has special handling
+        #     # for all caps text and thus needs to be lower cased
+        #     tags = street_trans.translate(attrs)
+        #     name_tag = (tags['name'] or '').lower()
+        #     tags['name'] = titlecase(name_tag, callback=tc_callback)
+        #
+        #     tags.update(street_filler)
+        #     s['properties'] = tags
+        #
+        #     combined.write(s)
+
+        for t in trails:
+            attrs = t['properties']
+
+            # expand abbreviations for and title case all name fields,
+            # encoding is explicitly set due to Windows issues
+            for name in ('AGENCY', 'SHARED', 'SYSTEM', 'TRAIL'):
+                name_key = '{}NAME'.format(name)
+                name_tag = (attrs[name_key] or '').encode('utf8')
+                attrs[name_key] = expander.basename(name_tag)
+
+            tags = trail_trans.translate(attrs)
+            if 'drop' in tags:
+                continue
+
+            tags.update(trail_filler)
+            t['properties'] = tags
+
+            combined.write(t)
+
+    streets.close()
+    trails.close()
+
+    # # TODO: dissolve, ogr2osm
+    # dissolver = WayDissolver()
+    # dissolver.dissolve_ways(paths.combined, paths.dissolved)
 
 
 def customize_titlecase():
