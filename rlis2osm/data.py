@@ -33,7 +33,7 @@ class RlisPaths(object):
 
         # self.streets must be set before self.dst_dir can be determined
         self.dst_dir = self._get_destination_dir(dst_dir)
-        self.combined = join(self.prj_dir, 'combined.geojson')
+        self.combined = join(self.prj_dir, 'combined.tab')
         self.dissolved = join(self.prj_dir, 'dissolved.geojson')
         self.osm = join(self.dst_dir, 'rlis.osm')
 

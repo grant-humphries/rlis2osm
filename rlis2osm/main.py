@@ -6,6 +6,7 @@ from os.path import exists
 
 import fiona
 from fiona.crs import from_epsg
+from shapely.geometry import mapping, shape
 from titlecase import set_small_word_list, titlecase, SMALL
 
 from rlis2osm import data
@@ -28,6 +29,7 @@ RLIS_SPECIAL = [
     ('BES', 'Bureau of Environmental Services', 'a'),
     ('BPA', 'Bonneville Power Administration', 'a'),
     ('MAX', 'Metropolitan Area Express', 'a'),
+    ('NCPRD', 'North Clackamas Parks & Recreation District', 'a'),
     ('PCC', 'Portland Community College', 'a'),
     ('PKW', 'Peterkort Woods', 'fm'),
     ('PSU', 'Portland State University', 'a'),
@@ -41,7 +43,7 @@ RLIS_SPECIAL = [
 ]
 
 
-def rlis2osm(paths):
+def expand_translate_combine(paths):
     expander = StreetNameExpander(special_cases=RLIS_SPECIAL)
     tc_callback = customize_titlecase()
 
@@ -60,11 +62,9 @@ def rlis2osm(paths):
     trails = fiona.open(encoding=RLIS_ENCODING, **zip_path(paths.trails))
 
     # file format is switched to geojson because the field names that
-    # need to be used for osm tags violate .dbf constraints, crs is
-    # redefined because fiona doesn't tie rlis spatial ref info to 2913
+    # need to be used for osm tags violate .dbf constraints
     metadata = streets.meta.copy()
-    metadata['crs'] = from_epsg(RLIS_EPSG)
-    metadata['driver'] = 'GeoJSON'
+    metadata['driver'] = 'MapInfo File'
     metadata['schema']['properties'] = combined_fields
 
     # fiona can't overwrite geojson like it can shapefiles
@@ -72,26 +72,26 @@ def rlis2osm(paths):
         os.remove(paths.combined)
 
     with fiona.open(paths.combined, 'w', **metadata) as combined:
-        # for s in streets:
-        #     attrs = s['properties']
-        #
-        #     # expand abbreviations in all street name parts
-        #     attrs['PREFIX'] = expander.direction(attrs['PREFIX'])
-        #     attrs['STREETNAME'] = expander.basename(attrs['STREETNAME'])
-        #     attrs['FTYPE'] = expander.type(attrs['FTYPE'])
-        #     attrs['DIRECTION'] = expander.direction(attrs['DIRECTION'])
-        #
-        #     # street names in rlis are in all caps and thus need to be
-        #     # title-cased, the titlecase package has special handling
-        #     # for all caps text and thus needs to be lower cased
-        #     tags = street_trans.translate(attrs)
-        #     name_tag = (tags['name'] or '').lower()
-        #     tags['name'] = titlecase(name_tag, callback=tc_callback)
-        #
-        #     tags.update(street_filler)
-        #     s['properties'] = tags
-        #
-        #     combined.write(s)
+        for s in streets:
+            attrs = s['properties']
+
+            # expand abbreviations in all street name parts
+            attrs['PREFIX'] = expander.direction(attrs['PREFIX'])
+            attrs['STREETNAME'] = expander.basename(attrs['STREETNAME'])
+            attrs['FTYPE'] = expander.type(attrs['FTYPE'])
+            attrs['DIRECTION'] = expander.direction(attrs['DIRECTION'])
+
+            # street names in rlis are in all caps and thus need to be
+            # title-cased, the titlecase package has special handling
+            # for all caps text and thus needs to be lower cased
+            tags = street_trans.translate(attrs)
+            name_tag = (tags['name'] or '').lower()
+            tags['name'] = titlecase(name_tag, callback=tc_callback)
+
+            tags.update(street_filler)
+            s['properties'] = tags
+
+            combined.write(s)
 
         for t in trails:
             attrs = t['properties']
@@ -100,16 +100,7 @@ def rlis2osm(paths):
             # encoding is explicitly set due to Windows issues
             for name in ('AGENCY', 'SHARED', 'SYSTEM', 'TRAIL'):
                 name_key = '{}NAME'.format(name)
-
-                # # windows doesn't know how to properly encode special
-                # # characters so on that p
-                # name_tag = (attrs[name_key] or '')
-                # if os.name == 'nt':
-                #     name_tag = name_tag.encode('utf-8')
-
-                unicode_name = attrs[name_key]
-                name_tag = (attrs[name_key] or '')  # .encode('utf-8')
-                attrs[name_key] = expander.basename(name_tag)
+                attrs[name_key] = expander.basename(attrs[name_key])
 
             tags = trail_trans.translate(attrs)
             if 'drop' in tags:
@@ -118,14 +109,17 @@ def rlis2osm(paths):
             tags.update(trail_filler)
             t['properties'] = tags
 
-            combined.write(t)
+            # break multipart geometries into separate features
+            geom = shape(t['geometry'])
+            if 'multi' in geom.type.lower():
+                for part in geom:
+                    t['geometry'] = mapping(part)
+                    combined.write(t)
+            else:
+                combined.write(t)
 
     streets.close()
     trails.close()
-
-    # # TODO: dissolve, ogr2osm
-    # dissolver = WayDissolver()
-    # dissolver.dissolve_ways(paths.combined, paths.dissolved)
 
 
 def customize_titlecase():
@@ -190,7 +184,15 @@ def main():
         src_dir=opts.src_dir,
         dst_dir=opts.dst_dir,
         refresh=opts.refresh)
-    rlis2osm(paths)
+
+    expand_translate_combine(paths)
+    # dissolver = WayDissolver()
+    # dissolver.dissolve_ways(paths.combined, paths.dissolved)
+
+    # with fiona.open(**zip_path(paths.combined)) as test:
+    #     for feat in test:
+    #         attrs = feat['properties']
+    #         geom = shape(feat['geometry'])
 
     # module execution order: data, expand, translate, combine, dissolve, ogr2osm
 

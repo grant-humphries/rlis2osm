@@ -7,7 +7,6 @@ import fiona
 from shapely.geometry import mapping, shape
 from shapely.ops import unary_union
 
-from rlis2osm.data import RlisPaths
 from rlis2osm.utils import zip_path
 
 start_time = time()
@@ -87,7 +86,6 @@ class WayDissolver(object):
                                 nodes.append(cn)
 
             way_groups.append(group)
-
         return way_groups
 
     def _define_filter_fields(self, filter_fields, exclude):
@@ -171,13 +169,3 @@ class LogSet(set):
         elif counter % self.dot_value == 0:
             stdout.write('.')
             stdout.flush()
-
-
-def main():
-    paths = RlisPaths()
-    dissolver = WayDissolver(paths.streets, paths.prj_dir)
-    dissolver.dissolve_ways()
-
-
-if __name__ == '__main__':
-    main()

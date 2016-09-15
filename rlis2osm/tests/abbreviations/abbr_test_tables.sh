@@ -8,7 +8,7 @@ PGDBNAME='rlis_abbr_test'
 PGHOST='localhost'
 PGCLIENTENCODING='UTF8'
 DATASETS=( 'streets' 'trails' )
-PROJECT_DIR="$( cd $(dirname ${0}); dirname $(pwd -P) )"
+PROJECT_DIR="$( cd $(dirname $(dirname ${0})); dirname $(pwd -P) )"
 
 # cygwin-psql can't read file paths starting like '/cygdrive/...'
 if [[ "${OSTYPE}" == 'cygwin' ]]; then
@@ -76,7 +76,7 @@ load_data() {
 }
 
 create_word_table() {
-    abbr_sql="${PROJECT_DIR}/tests/word_table.sql"
+    abbr_sql="${PROJECT_DIR}/tests/abbreviations/word_table.sql"
     psql -d "${PGDBNAME}" -v ON_ERROR_STOP=1 -f "${abbr_sql}"
 }
 
