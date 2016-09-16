@@ -80,6 +80,8 @@ class StreetTranslator(object):
             ('tunnel', 'str')
         ])
 
+        # TODO get rid of rlis specific tags, try to capture the info as a
+        # part of the osm standard
         if self.bike_tag_map:
             self.BIKE_FIELDS = {
                 'bicycle': 'str',
@@ -261,8 +263,6 @@ class TrailsTranslator(object):
         'Not Accessible': 'no'
     }
 
-    # TODO get rid of rlis specific tags, try to capture the info as a
-    # part of the osm standard
     OSM_FIELDS = OrderedDict([
         ('abandoned:highway', 'str'),
         ('access', 'str'),
@@ -279,7 +279,6 @@ class TrailsTranslator(object):
         ('proposed', 'str'),
         ('surface', 'str'),
         ('wheelchair', 'str'),
-        ('RLIS:system_name', 'str')
     ])
 
     def __init__(self):
@@ -300,11 +299,14 @@ class TrailsTranslator(object):
 
         # osm tags used in functions
         self.abandoned = None
+        self.alt_name = None
         self.bicycle = None
         self.construction = None
         self.est_width = None
         self.foot = None
         self.horse = None
+        self.name = None
+        self.operator = None
         self.proposed = None
 
     def translate(self, attributes):
@@ -336,12 +338,12 @@ class TrailsTranslator(object):
 
         self._reset_osm_tags()
         self._set_highway_mode()
-        self._adjust_names()
+        self._set_names()
 
         tags = {
             'abandoned:highway': self.abandoned,
             'access': self.ACCESS_MAP.get(self.status),
-            'alt_name': self.shared_name,
+            'alt_name': self.alt_name,
             'bicycle': self.bicycle,
             'construction': self.construction,
             'est_width': self.est_width,
@@ -349,23 +351,25 @@ class TrailsTranslator(object):
             'foot': self.foot,
             'highway': self.highway,
             'horse': self.horse,
-            'name': self.trail_name,
-            'operator': self.agency_name,
+            'name': self.name,
+            'operator': self.operator,
             'proposed': self.proposed,
             'surface': self.SURFACE_MAP.get(self.trl_surface),
             'wheelchair': self.WHEELCHAIR_MAP.get(self.accessible),
-            'RLIS:system_name': self.system_name
         }
 
         return tags
 
     def _reset_osm_tags(self):
         self.abandoned = None
+        self.alt_name = None
         self.bicycle = None
         self.construction = None
         self.est_width = None
         self.foot = None
         self.horse = None
+        self.name = None
+        self.operator = None
         self.proposed = None
 
     def _set_highway_mode(self):
@@ -455,16 +459,18 @@ class TrailsTranslator(object):
             self.est_width = (
                 round(temp_width * 0.3048 / resolution) * resolution)
 
-    def _adjust_names(self):
-        # name adjustments, no duplicate names
-        if self.shared_name == self.trail_name:
-            self.shared_name = None
+    def _set_names(self):
+        self.name = self.trail_name or self.shared_name or self.system_name
 
-        if self.system_name in (self.trail_name, self.shared_name):
-            self.system_name = None
+        # order of shared and system matters here shared name takes
+        # precedence over system name
+        for alt_name in (self.shared_name, self.system_name):
+            if alt_name and alt_name != self.name:
+                self.alt_name = alt_name
+                break
 
-        if self.agency_name == 'Unknown':
-            self.agency_name = None
+        if self.agency_name != 'Unknown':
+            self.operator = self.agency_name
 
 
 def n_any(iterable, n):
