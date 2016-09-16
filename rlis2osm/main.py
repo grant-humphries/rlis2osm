@@ -64,7 +64,7 @@ def expand_translate_combine(paths):
     # file format is switched to geojson because the field names that
     # need to be used for osm tags violate .dbf constraints
     metadata = streets.meta.copy()
-    metadata['driver'] = 'MapInfo File'
+    metadata['driver'] = 'GeoJSON'
     metadata['schema']['properties'] = combined_fields
 
     # fiona can't overwrite geojson like it can shapefiles

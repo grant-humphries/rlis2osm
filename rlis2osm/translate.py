@@ -453,7 +453,7 @@ class TrailsTranslator(object):
         # convert to meters and round to supplied unit
         if temp_width:
             self.est_width = (
-                round(temp_width * 0.3048 * resolution) / resolution)
+                round(temp_width * 0.3048 / resolution) * resolution)
 
     def _adjust_names(self):
         # name adjustments, no duplicate names
