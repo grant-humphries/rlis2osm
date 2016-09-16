@@ -23,7 +23,8 @@ class RlisPaths(object):
 
     def __init__(self, src_dir=None, dst_dir=None):
         module_path = abspath(getsourcefile(lambda: 0))
-        self.prj_dir = join(dirname(dirname(module_path)), 'data')
+        self.prj_dir = join(dirname(dirname(module_path)))
+        self.data_dir = join(self.prj_dir, 'data')
         self.src_dir = self._get_source_dir(src_dir)
 
         feature_paths = self._get_source_paths()
@@ -33,11 +34,11 @@ class RlisPaths(object):
 
         # self.streets must be set before self.dst_dir can be determined
         self.dst_dir = self._get_destination_dir(dst_dir)
-        self.combined = join(self.prj_dir, 'combined.shp')
-        self.dissolved = join(self.prj_dir, 'dissolved.shp')
+        self.combined = join(self.data_dir, 'combined.shp')
+        self.dissolved = join(self.data_dir, 'dissolved.shp')
         self.osm = join(self.dst_dir, 'rlis.osm')
 
-        for directory in (self.prj_dir, self.dst_dir):
+        for directory in (self.data_dir, self.dst_dir):
             if not exists(directory):
                 os.makedirs(directory)
 
@@ -47,7 +48,7 @@ class RlisPaths(object):
         elif exists(self.TRIMET_RLIS):
             src_dir = self.TRIMET_RLIS
         else:
-            src_dir = self.prj_dir
+            src_dir = self.data_dir
 
         return src_dir
 
@@ -60,7 +61,7 @@ class RlisPaths(object):
                 dirname(self.TRIMET_RLIS), 'PUBLIC', 'OpenStreetMap',
                 'RLIS', 'RLIS_osm_data', mod_time.strftime('%Y_%m'))
         else:
-            dst_dir = self.prj_dir
+            dst_dir = self.data_dir
 
         return dst_dir
 

@@ -13,6 +13,9 @@ setup(
             'ogr2osm = ogr2osm.ogr2osm:main'
         ]
     },
+    extras_require=dict(
+        test=['pprofile>=1.9.2']
+    ),
     install_requires=[
         'fiona>=1.6.1',
         'gdal>=1.11.3',

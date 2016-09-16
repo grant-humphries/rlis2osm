@@ -1,8 +1,8 @@
-import os
 import sys
 from argparse import ArgumentParser
 from collections import OrderedDict
-from os.path import exists
+from os.path import join
+from subprocess import check_call
 
 import fiona
 from shapely.geometry import mapping, shape
@@ -63,10 +63,6 @@ def expand_translate_combine(paths):
     metadata = streets.meta.copy()
     metadata['schema']['properties'] = combined_fields
     metadata['encoding'] = 'utf-8'
-
-    # fiona can't overwrite geojson like it can shapefiles
-    if exists(paths.combined):
-        os.remove(paths.combined)
 
     # note that the field names that have colons or exceed 10 characters
     # will be modified due to .dbf spec, they are reinstated during the
@@ -189,8 +185,18 @@ def main():
         refresh=opts.refresh)
 
     # expand_translate_combine(paths)
-    dissolver = WayDissolver()
-    dissolver.dissolve_ways(paths.combined, paths.dissolved)
+    # dissolver = WayDissolver()
+    # dissolver.dissolve_ways(paths.combined, paths.dissolved)
+
+    ogr2osm = join(paths.prj_dir, 'bin', 'ogr2osm')
+    translation_file = join(paths.prj_dir, 'rlis2osm', 'repair_keys.py')
+    check_call([
+        ogr2osm, '-f',
+        '-e', str(RLIS_EPSG),
+        '-o', paths.osm,
+        '-t', translation_file,
+        paths.dissolved
+    ])
 
     # module execution order: data, expand, translate, combine, dissolve, ogr2osm
 
