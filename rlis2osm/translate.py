@@ -269,7 +269,7 @@ class TrailsTranslator(object):
         ('alt_name', 'str'),
         ('bicycle', 'str'),
         ('construction', 'str'),
-        ('est_width', 'float'),
+        ('est_width', 'float:6.2'),
         ('fee', 'str'),
         ('foot', 'str'),
         ('highway', 'str'),

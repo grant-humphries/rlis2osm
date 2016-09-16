@@ -5,7 +5,6 @@ from collections import OrderedDict
 from os.path import exists
 
 import fiona
-from fiona.crs import from_epsg
 from shapely.geometry import mapping, shape
 from titlecase import set_small_word_list, titlecase, SMALL
 
@@ -47,7 +46,7 @@ def expand_translate_combine(paths):
     expander = StreetNameExpander(special_cases=RLIS_SPECIAL)
     tc_callback = customize_titlecase()
 
-    bike_routes = fiona.open(encoding=RLIS_ENCODING, **zip_path(paths.bikes))
+    bike_routes = fiona.open(**zip_path(paths.bikes, encoding=RLIS_ENCODING))
     bike_mapping = get_bike_tag_map(bike_routes)
     street_trans = StreetTranslator(bike_mapping)
     trail_trans = TrailsTranslator()
@@ -58,19 +57,21 @@ def expand_translate_combine(paths):
     street_filler = {k: None for k in t_fields if k not in s_fields}
     trail_filler = {k: None for k in s_fields if k not in t_fields}
 
-    streets = fiona.open(encoding=RLIS_ENCODING, **zip_path(paths.streets))
-    trails = fiona.open(encoding=RLIS_ENCODING, **zip_path(paths.trails))
+    streets = fiona.open(**zip_path(paths.streets, encoding=RLIS_ENCODING))
+    trails = fiona.open(**zip_path(paths.trails, encoding=RLIS_ENCODING))
 
-    # file format is switched to geojson because the field names that
-    # need to be used for osm tags violate .dbf constraints
     metadata = streets.meta.copy()
-    metadata['driver'] = 'GeoJSON'
     metadata['schema']['properties'] = combined_fields
+    metadata['encoding'] = 'utf-8'
 
     # fiona can't overwrite geojson like it can shapefiles
     if exists(paths.combined):
         os.remove(paths.combined)
 
+    # note that the field names that have colons or exceed 10 characters
+    # will be modified due to .dbf spec, they are reinstated during the
+    # ogr2osm step, I attempted to switch to geojson to get around this,
+    # but reading geojson from disk is much slower than shapefile
     with fiona.open(paths.combined, 'w', **metadata) as combined:
         for s in streets:
             attrs = s['properties']
@@ -120,6 +121,8 @@ def expand_translate_combine(paths):
 
     streets.close()
     trails.close()
+
+    # TODO: zip up output to keep things tidy
 
 
 def customize_titlecase():
@@ -185,14 +188,9 @@ def main():
         dst_dir=opts.dst_dir,
         refresh=opts.refresh)
 
-    expand_translate_combine(paths)
-    # dissolver = WayDissolver()
-    # dissolver.dissolve_ways(paths.combined, paths.dissolved)
-
-    # with fiona.open(**zip_path(paths.combined)) as test:
-    #     for feat in test:
-    #         attrs = feat['properties']
-    #         geom = shape(feat['geometry'])
+    # expand_translate_combine(paths)
+    dissolver = WayDissolver()
+    dissolver.dissolve_ways(paths.combined, paths.dissolved)
 
     # module execution order: data, expand, translate, combine, dissolve, ogr2osm
 

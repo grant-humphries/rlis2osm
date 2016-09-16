@@ -1,7 +1,7 @@
 from os.path import basename
 
 
-def zip_path(path):
+def zip_path(path, **kwargs):
     """fiona has the ability open zipped shapefiles, this method
     handles both zipped and unzipped
     """
@@ -13,4 +13,4 @@ def zip_path(path):
     else:
         path = path
 
-    return dict(path=path, vfs=vfs)
+    return dict(path=path, vfs=vfs, **kwargs)
