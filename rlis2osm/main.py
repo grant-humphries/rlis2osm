@@ -184,9 +184,9 @@ def main():
         dst_dir=opts.dst_dir,
         refresh=opts.refresh)
 
-    # expand_translate_combine(paths)
-    # dissolver = WayDissolver()
-    # dissolver.dissolve_ways(paths.combined, paths.dissolved)
+    expand_translate_combine(paths)
+    dissolver = WayDissolver()
+    dissolver.dissolve_ways(paths.combined, paths.dissolved)
 
     ogr2osm = join(paths.prj_dir, 'bin', 'ogr2osm')
     translation_file = join(paths.prj_dir, 'rlis2osm', 'repair_keys.py')
@@ -198,7 +198,6 @@ def main():
         paths.dissolved
     ])
 
-    # module execution order: data, expand, translate, combine, dissolve, ogr2osm
 
 if __name__ == '__main__':
     main()

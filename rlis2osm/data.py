@@ -106,7 +106,7 @@ def download_rlis(paths, refresh):
         if refresh or not exists(ds):
             if not accepted_terms:
                 user_accept = raw_input(
-                    'RLIS data is about to be downloaded; in order to use '
+                    'RLIS data is about to be downloaded, in order to use '
                     'this data you must comply with their license, see '
                     'further info here: "{}".  Do you wish to proceed? '
                     '(y/n)\n'.format(RLIS_TERMS))
@@ -160,7 +160,7 @@ def main(src_dir=None, dst_dir=None, refresh=False):
 
     # do not download/refresh data if user has supplied a source path
     # or if working in TriMet environment
-    if paths.src_dir == paths.prj_dir:
+    if paths.src_dir == paths.data_dir:
         download_rlis(paths, refresh)
 
     return paths

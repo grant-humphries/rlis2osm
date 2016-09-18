@@ -269,7 +269,7 @@ class TrailsTranslator(object):
         ('alt_name', 'str'),
         ('bicycle', 'str'),
         ('construction', 'str'),
-        ('est_width', 'float:6.2'),
+        ('est_width', 'str'),
         ('fee', 'str'),
         ('foot', 'str'),
         ('highway', 'str'),
@@ -454,10 +454,11 @@ class TrailsTranslator(object):
             self.est_width = None
             return
 
-        # convert to meters and round to supplied unit
+        # convert to meters, round to supplied unit and return a string
+        # so that trailing zeros aren't in osm tag
         if temp_width:
-            self.est_width = (
-                round(temp_width * 0.3048 / resolution) * resolution)
+            rounded_width = round(temp_width * 0.3048 / resolution) * resolution
+            self.est_width = format(rounded_width, 'g')
 
     def _set_names(self):
         self.name = self.trail_name or self.shared_name or self.system_name

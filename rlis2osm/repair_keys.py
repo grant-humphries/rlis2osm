@@ -17,7 +17,8 @@ def filterTags(tags):
 
     repaired_tags = dict()
     for k, v in tags.items():
-        k = key_repair_dict.get(k, k)
-        repaired_tags[k] = v
+        if v != '' and v is not None:
+            k = key_repair_dict.get(k, k)
+            repaired_tags[k] = v
 
     return repaired_tags

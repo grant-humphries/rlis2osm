@@ -5,7 +5,7 @@ from time import time
 
 import fiona
 from shapely.geometry import mapping, shape
-from shapely.ops import unary_union
+from shapely.ops import linemerge
 
 from rlis2osm.utils import zip_path
 
@@ -36,7 +36,7 @@ class WayDissolver(object):
                     geom_list.append(geom)
 
                 group_tags = self.ways[group[0]]['properties']
-                dissolve_geom = unary_union(geom_list)
+                dissolve_geom = linemerge(geom_list)
                 dissolve_tags = self._filter_tags(group_tags)
                 dissolve_shp.write(dict(
                     geometry=mapping(dissolve_geom),
