@@ -221,6 +221,13 @@ def get_bike_tag_map(bike_feats):
         if bike_there == 'CA':
             rlis_bicycle = 'caution_area'
 
+        # when segments that also exist in the streets data set need to
+        # be split in the bike data the are prefixed with 9**, that
+        # prefix must be striped in order to link between the two
+        string_bid = str(bike_id)
+        if len(string_bid) > 6:
+            bike_id = int(string_bid[-6:])
+
         bike_tag_map[bike_id] = {
             'bicycle': bicycle,
             'cycleway': cycleway,

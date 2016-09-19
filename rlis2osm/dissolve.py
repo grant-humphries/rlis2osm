@@ -61,9 +61,9 @@ class WayDissolver(object):
                 continue
 
             group = list([fid])
-            assigned.log_add(fid)
+            group_tags = self._filter_tags(feat['properties'])
             nodes = way_nodes[fid].values()
-            tags = self._filter_tags(feat['properties'])
+            assigned.log_add(fid)
 
             while nodes:
                 n = nodes.pop()
@@ -76,14 +76,19 @@ class WayDissolver(object):
                     connect_way = self.ways[connect_id]
                     connect_tags = self._filter_tags(connect_way['properties'])
 
-                    if tags == connect_tags:
-                        group.append(connect_id)
-                        assigned.log_add(connect_id)
+                    if connect_tags != group_tags:
+                        continue
 
-                        connect_nodes = way_nodes[connect_id].values()
-                        for cn in connect_nodes:
-                            if cn != n and cn not in nodes:
-                                nodes.append(cn)
+                    group.append(connect_id)
+                    assigned.log_add(connect_id)
+
+                    # the non-shared node of the current feature becomes a new
+                    # end point for the group and the connected_ways loop is
+                    # broken as its remaining features are no longer candidates
+                    connect_nodes = way_nodes[connect_id].values()
+                    add_node = [cn for cn in connect_nodes if cn != n]
+                    nodes.extend(add_node)
+                    break
 
             way_groups.append(group)
         return way_groups
@@ -118,7 +123,18 @@ class WayDissolver(object):
 
         for fid, feat in self.ways.items():
             geom = shape(feat['geometry'])
-            coords = list(geom.coords)
+
+            # multigeometries don't have a coords attribute, and splitting to
+            # single part within this module would either require bring all of
+            # the features into memory or writing an intermediate dataset, so
+            # have the user handle that before hand makes more sense
+            try:
+                coords = list(geom.coords)
+            except NotImplementedError:
+                raise NotImplementedError(
+                    "The dissolve_ways method doesn't support MultiGeometries "
+                    'convert the input to single part and run again')
+
             f_node = coords[0]
             t_node = coords[-1]
 
