@@ -7,13 +7,14 @@ class StreetTranslator(object):
 
     # several of these mapping are initial written as with key values
     # swapped to be more terse, then flipped
+
+    # TYPE --> access
     REV_ACCESS_MAP = {
         'private': (1700, 1740, 1750, 1760, 1800, 1850),
-        'no': (5402,)
-    }
-    # TYPE --> access
+        'no': (5402,)}
     ACCESS_MAP = {i: k for k, v in REV_ACCESS_MAP.items() for i in v}
 
+    # TYPE --> highway
     REV_HIGHWAY_MAP = {
         'motorway': (1110, 5101, 5201),
         'motorway_link': (1120, 1121, 1122, 1123),
@@ -25,16 +26,13 @@ class StreetTranslator(object):
         'tertiary_link': (1521,),
         'residential': (1500, 1550, 1700, 1740, 2000, 8224),
         'service': (1560, 1600, 1750, 1760, 1800, 1850),
-        'track': (9000,)
-    }
-    # TYPE --> highway
+        'track': (9000,)}
     HIGHWAY_MAP = {i: k for k, v in REV_HIGHWAY_MAP.items() for i in v}
 
+    # TYPE --> service
     REV_SERVICE_MAP = {
         'alley': (1600,),
-        'driveway': (1750, 1850)
-    }
-    # TYPE --> service
+        'driveway': (1750, 1850)}
     SERVICE_MAP = {i: k for k, v in REV_SERVICE_MAP.items() for i in v}
 
     # TYPE --> surface
@@ -392,7 +390,7 @@ class TrailsTranslator(object):
 
         # logic below relies on est_width first being set here and cast
         # to float
-        float_width = float(self._set_est_width(0.25))
+        float_width = float(self._set_est_width(0.25) or 0)
 
         # if trail isn't over three meters wide it's not that favorable
         # to bicycling
