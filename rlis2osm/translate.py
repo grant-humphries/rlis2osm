@@ -388,13 +388,18 @@ class TrailsTranslator(object):
         # TODO use the attribute SYSTEMTYPE in the determination of the
         # highway value
 
-        # logic below relies on est with first being set here
-        self._set_est_width(0.25)
+        # logic below relies on est_width first being set here and cast
+        # to float
+        float_width = float(self._set_est_width(0.25))
+
+        # if trail isn't over three meters wide it's not that favorable
+        # to bicycling
+        bike_designated = self.road_bike == 'Yes' and float_width > 3
         path_conditions = [
             self.equestrian == 'Yes',
             self.hike == 'Yes',
             self.mtn_bike == 'Yes',
-            self.road_bike == 'Yes' and self.est_width > 3
+            bike_designated
         ]
 
         if self.trl_surface == 'Stairs':
@@ -402,7 +407,7 @@ class TrailsTranslator(object):
         elif n_any(path_conditions, 2):
             self.highway = 'path'
 
-            # horse=no is on everything except path and bridleway,
+            # horse=no is implied on everything except path and bridleway,
             # that's not the case for foot and bike
             if self.equestrian == 'Yes':
                 self.horse = 'designated'
@@ -414,14 +419,20 @@ class TrailsTranslator(object):
 
             if self.road_bike or self.mtn_bike:
                 self.bicycle = 'designated'
-        elif self.road_bike == 'Yes':
+        # if code below is executed 1 or fewer modes are designated
+        # for use on the trail
+        elif bike_designated:
             self.highway = 'cycleway'
+        elif self.mtn_bike == 'Yes':
+            self.highway = 'path'
+            self.bicycle = 'designated'
         elif self.equestrian == 'Yes':
             self.highway = 'bridleway'
         else:
             self.highway = 'footway'
 
-            if self.road_bike or self.mtn_bike:
+            # trails are < 3 meters wide in this case
+            if self.road_bike == 'Yes':
                 self.bicycle = 'yes'
 
         if self.hike == 'No':
@@ -466,6 +477,8 @@ class TrailsTranslator(object):
         if temp_width:
             rounded_width = round(temp_width * 0.3048 / resolution) * resolution
             self.est_width = format(rounded_width, 'g')
+
+        return self.est_width
 
     def _set_names(self):
         self.name = self.trail_name or self.shared_name or self.system_name
