@@ -300,6 +300,7 @@ class TrailsTranslator(object):
         self.shared_name = None
         self.status = None
         self.system_name = None
+        self.system_type = None
         self.trail_name = None
         self.trl_surface = None
         self.width = None
@@ -327,6 +328,7 @@ class TrailsTranslator(object):
         self.shared_name = attributes['SHAREDNAME']
         self.status = attributes['STATUS']
         self.system_name = attributes['SYSTEMNAME']
+        self.system_type = attributes['SYSTEMTYPE']
         self.trail_name = attributes['TRAILNAME']
         self.trl_surface = attributes['TRLSURFACE']
         self.width = attributes['WIDTH']
