@@ -381,20 +381,21 @@ class TrailsTranslator(object):
 
     def _set_highway_mode(self):
         """determine value for highway and mode access tags base on mode
-        permissions and trail width and set related highway tags that are
-        sometimes transferred its value
+        permissions, trail width, and trail network and set related
+        highway tags that are sometimes transferred its value
         """
-
-        # TODO use the attribute SYSTEMTYPE in the determination of the
-        # highway value
 
         # logic below relies on est_width first being set here and cast
         # to float
         float_width = float(self._set_est_width(0.25) or 0)
 
-        # if trail isn't over three meters wide it's not that favorable
-        # to bicycling
-        bike_designated = self.road_bike == 'Yes' and float_width > 3
+        # if trail isn't over three meters wide it's generally not
+        # favorable to bicycling
+        bike_designated = (
+            self.road_bike == 'Yes' and (
+                float_width > 3 or
+                self.system_type in ('Regional', 'State', 'National'))
+        )
         path_conditions = [
             self.equestrian == 'Yes',
             self.hike == 'Yes',
