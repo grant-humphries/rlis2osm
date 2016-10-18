@@ -1,4 +1,4 @@
-import logging
+import logging as log
 from collections import defaultdict
 from sys import stdout
 from time import time
@@ -8,8 +8,6 @@ from shapely.geometry import mapping, shape
 from shapely.ops import linemerge
 
 from rlis2osm.utils import zip_path
-
-start_time = time()
 
 
 class WayDissolver(object):
@@ -49,8 +47,8 @@ class WayDissolver(object):
     def _determine_way_groups(self):
         node_way_map, way_nodes = self._map_end_pts_to_ways()
 
-        print 'determining dissolve groups'
-        print 'number of features processed:'
+        log.info('determining dissolve groups')
+        log.info('number of features processed:')
 
         # a set is used here instead of a list because many lookups must
         # be done on this collection and it reaches a large size
@@ -103,7 +101,7 @@ class WayDissolver(object):
             for ff in filter_fields:
                 if ff not in fields:
                     # TODO raise error here instead
-                    logging.error('supplied field: "{}", does not exists in '
+                    log.error('supplied field: "{}", does not exists in '
                                   'the data, modify the "fields" input and run '
                                   'again'.format(ff))
                     exit()
@@ -165,6 +163,7 @@ class LogSet(set):
         super(self.__class__, self).__init__()
         self.dot_value = dot_value
         self.num_value = num_value
+        self.start_time = time()
 
     def log_add(self, list_obj):
         """check the size of the set after adding an element and log the
@@ -172,16 +171,17 @@ class LogSet(set):
         """
 
         self.add(list_obj)
-        counter = len(self)
 
-        # TODO: use logging instead of print here
+        if not log.getLogger().isEnabledFor(log.INFO):
+            return
+
+        counter = len(self)
         if counter % self.num_value == 0:
             stdout.write('{:,}'.format(counter))
             stdout.flush()
 
-            global start_time
-            print '    {}'.format(time() - start_time)
-            start_time = time()
+            log.debug('    {}', time() - self.start_time)
+            self.start_time = time()
         elif counter % self.dot_value == 0:
             stdout.write('.')
             stdout.flush()

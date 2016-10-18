@@ -1,13 +1,17 @@
+import logging as log
 import os
+import sys
 import urllib2
 from datetime import datetime
 from inspect import getsourcefile
-from logging import getLogger
 from os.path import abspath, basename, dirname, exists, getmtime, isdir, \
     join, splitext
 from posixpath import join as urljoin
+from sys import stdout
 
-log = getLogger(__name__)
+from humanize import naturalsize
+
+# log = getLogger(__name__)
 
 RLIS_URL = 'http://library.oregonmetro.gov/rlisdiscovery'
 RLIS_TERMS = 'http://rlisdiscovery.oregonmetro.gov/view/terms.htm'
@@ -107,13 +111,14 @@ def download_rlis(paths, refresh):
             if not accepted_terms:
                 user_accept = raw_input(
                     'RLIS data is about to be downloaded, in order to use '
-                    'this data you must comply with their license, see '
-                    'further info here: "{}".  Do you wish to proceed? '
+                    'it you must comply with their license, see details on the '
+                    'terms here: "{}".  Do you wish to proceed? '
                     '(y/n)\n'.format(RLIS_TERMS))
 
                 if user_accept.lower() not in ('y', 'yes'):
-                    "you've declined RLIS's terms, program terminating..."
-                    exit()
+                    log.critical("you've declined RLIS's terms, program "
+                                 "terminating...")
+                    sys.exit(1)
                 else:
                     accepted_terms = True
 
@@ -122,36 +127,47 @@ def download_rlis(paths, refresh):
 
 
 def download_with_progress(url, write_dir):
-    # adapted from: http://stackoverflow.com/questions/22676
-
     file_name = basename(url)
     file_path = join(write_dir, file_name)
     content = urllib2.urlopen(url)
 
     meta = content.info()
     file_size = int(meta.getheaders('Content-Length')[0])
-    file_size_dl = 0
-    block_sz = 8192
 
-    log.info('\nDownload Metadata:'
-             '\nfile name: {}'
-             '\ntarget directory: {}'
-             '\nfile size: {:,} bytes'.format(file_name, write_dir, file_size))
+    download_size = 0
+    block_size = 8192
+    logged = 0
+
+    log.info('Download Metadata --v')
+    log.info('target file: {}'.format(file_path))
+    log.info('file size: {}'.format(naturalsize(file_size)))
+    log.info('percent completed:')
 
     with open(file_path, 'wb') as file_:
         while True:
-            buffer_ = content.read(block_sz)
+            buffer_ = content.read(block_size)
             if not buffer_:
                 break
 
-            file_size_dl += len(buffer_)
             file_.write(buffer_)
+            if not log.getLogger().isEnabledFor(log.INFO):
+                continue
 
-            status = '{0:12,d}  [{1:3.2f}%]'.format(
-                file_size_dl, file_size_dl * 100. / file_size)
-            status += chr(8) * (len(status) + 1)
-            print status,
-        print ''
+            download_size += len(buffer_)
+            pct_complete = int(round(download_size / file_size * 100))
+            pct_range = pct_complete + 1
+            for i in range(logged, pct_range):
+                if i % 10 == 0:
+                    stdout.write(str(i))
+
+                    if i == 100:
+                        stdout.write('\n')
+                elif i % 1 == 0:
+                    stdout.write('.')
+
+                stdout.flush()
+            logged = pct_range
+
     return file_path
 
 

@@ -1,3 +1,4 @@
+import logging as log
 import sys
 from argparse import ArgumentParser
 from collections import OrderedDict
@@ -5,6 +6,7 @@ from os.path import join
 from subprocess import check_call
 
 import fiona
+from fiona.crs import from_epsg
 from shapely.geometry import mapping, shape
 from titlecase import set_small_word_list, titlecase, SMALL
 
@@ -60,7 +62,9 @@ def expand_translate_combine(paths):
     streets = fiona.open(**zip_path(paths.streets, encoding=RLIS_ENCODING))
     trails = fiona.open(**zip_path(paths.trails, encoding=RLIS_ENCODING))
 
+    # fiona doesn't recognize rlis's crs string, so it's redefined
     metadata = streets.meta.copy()
+    metadata['crs'] = from_epsg(RLIS_EPSG)
     metadata['schema']['properties'] = combined_fields
     metadata['encoding'] = 'utf-8'
 
@@ -153,22 +157,28 @@ def process_options(args):
         '-d', '--destination_directory',
         default=None,
         dest='dst_dir',
-        help='write location finished product'
+        help='write location of .osm file'
+    )
+    parser.add_argument(
+        '-l', '--log_level',
+        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+        default='INFO',
+        type=str.upper,
+        help='specify the category of messages to be logged to stdout'
     )
     parser.add_argument(
         '-r', '--refresh_data',
-        default=False,
+        action='store_true',
         dest='refresh',
-        type=bool,
-        help='if set to true existing rlis data will be overwritten with the '
-             "latest version from the Metro's website"
+        help='if flag is supplied the latest rlis data will be downloaded '
+             'overwriting any existing files at the same path'
     )
     parser.add_argument(
         '-s', '--source_directory',
         default=None,
         dest='src_dir',
         help='location of source rlis shapefiles if they exist, else write '
-             'location for downloaded datasets'
+             'location for downloaded rlis data'
     )
 
     options = parser.parse_args(args)
@@ -178,16 +188,30 @@ def process_options(args):
 def main():
     args = sys.argv[1:]
     opts = process_options(args)
+    log_level = getattr(log, opts.log_level)
+    log.basicConfig(format='%(levelname)s: %(message)s', level=log_level)
+    log.info('rlis2osm here we go!')
+
+    # suppress fiona's logging unless debugging
+    # if opts.log_level != 'DEBUG':
+    #     log.getLogger('fiona').setLevel(log.ERROR)
 
     paths = data.main(
         src_dir=opts.src_dir,
         dst_dir=opts.dst_dir,
         refresh=opts.refresh)
 
+    log.info('expanding abbreviating street names, translating rlis '
+             'attributes to osm tags and combining street, trail and bike '
+             'information into a single dataset...')
     expand_translate_combine(paths)
+
+    log.info('merging street and trail segments that have identical '
+             'attributes and that share an end point...')
     dissolver = WayDissolver()
     dissolver.dissolve_ways(paths.combined, paths.dissolved)
 
+    log.info('converting from shapefile to openstreetmap (.osm) file format:')
     ogr2osm = join(paths.prj_dir, 'bin', 'ogr2osm')
     translation_file = join(paths.prj_dir, 'rlis2osm', 'repair_keys.py')
     check_call([
