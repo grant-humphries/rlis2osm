@@ -9,16 +9,19 @@ from shapely.ops import linemerge
 
 from rlis2osm.utils import zip_path
 
+logger = log.getLogger(__name__)
+
 
 class WayDissolver(object):
-
     def __init__(self, ):
         self.ways = None
         self.fields = None
+        self.src_path = None
 
     def dissolve_ways(self, src_path, dst_path, fields=None, exclude=False):
         self.ways = fiona.open(**zip_path(src_path))
         self.fields = self._define_filter_fields(fields, exclude)
+        self.src_path = src_path
 
         way_groups = self._determine_way_groups()
         metadata = self.ways.meta.copy()
@@ -47,8 +50,8 @@ class WayDissolver(object):
     def _determine_way_groups(self):
         node_way_map, way_nodes = self._map_end_pts_to_ways()
 
-        log.info('determining dissolve groups')
-        log.info('number of features processed:')
+        logger.info('determining dissolve groups...'
+                    'number of features processed:')
 
         # a set is used here instead of a list because many lookups must
         # be done on this collection and it reaches a large size
@@ -89,6 +92,12 @@ class WayDissolver(object):
                     break
 
             way_groups.append(group)
+
+        # the log set doesn't include a new line after it writes so
+        # create one here so further logging info will be readable
+        if logger.isEnabledFor(log.INFO):
+            stdout.write('\n')
+
         return way_groups
 
     def _define_filter_fields(self, filter_fields, exclude):
@@ -98,16 +107,14 @@ class WayDissolver(object):
 
         fields = self.ways[0]['properties'].keys()
         if filter_fields:
-            for ff in filter_fields:
-                if ff not in fields:
-                    # TODO raise error here instead
-                    log.error('supplied field: "{}", does not exists in '
-                                  'the data, modify the "fields" input and run '
-                                  'again'.format(ff))
-                    exit()
+            for f in filter_fields:
+                if f not in fields:
+                    raise ValueError(
+                        'supplied field: "{}", does not exist in the '
+                        'file: "{}"'.format(f, self.src_path))
             if exclude:
-                for ff in filter_fields:
-                    fields.remove(ff)
+                for f in filter_fields:
+                    fields.remove(f)
             else:
                 fields = filter_fields
 
@@ -172,7 +179,7 @@ class LogSet(set):
 
         self.add(list_obj)
 
-        if not log.getLogger().isEnabledFor(log.INFO):
+        if not logger.isEnabledFor(log.INFO):
             return
 
         counter = len(self)
@@ -180,8 +187,13 @@ class LogSet(set):
             stdout.write('{:,}'.format(counter))
             stdout.flush()
 
-            log.debug('    {}', time() - self.start_time)
+            if not logger.isEnabledFor(log.DEBUG):
+                return
+
+            block_time = time() - self.start_time
+            stdout.write('    time elapsed: {}\n'.format(block_time))
             self.start_time = time()
+
         elif counter % self.dot_value == 0:
             stdout.write('.')
             stdout.flush()

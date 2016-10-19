@@ -15,7 +15,7 @@ from rlis2osm.dissolve import WayDissolver
 from rlis2osm.expand import StreetNameExpander
 from rlis2osm.translate import get_bike_tag_map, StreetTranslator, \
     TrailsTranslator
-from rlis2osm.utils import zip_path
+from rlis2osm.utils import zip_path, zip_shapefile
 
 RLIS_ENCODING = 'cp1252'
 RLIS_EPSG = 2913
@@ -122,8 +122,6 @@ def expand_translate_combine(paths):
     streets.close()
     trails.close()
 
-    # TODO: zip up output to keep things tidy
-
 
 def customize_titlecase():
 
@@ -152,7 +150,7 @@ def customize_titlecase():
 
 
 def process_options(args):
-    parser = ArgumentParser()
+    parser = ArgumentParser(prog='rlis2osm')
     parser.add_argument(
         '-d', '--destination_directory',
         default=None,
@@ -160,16 +158,8 @@ def process_options(args):
         help='write location of .osm file'
     )
     parser.add_argument(
-        '-l', '--log_level',
-        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
-        default='INFO',
-        type=str.upper,
-        help='specify the category of messages to be logged to stdout'
-    )
-    parser.add_argument(
-        '-r', '--refresh_data',
+        '-r', '--refresh',
         action='store_true',
-        dest='refresh',
         help='if flag is supplied the latest rlis data will be downloaded '
              'overwriting any existing files at the same path'
     )
@@ -181,6 +171,18 @@ def process_options(args):
              'location for downloaded rlis data'
     )
 
+    log_group = parser.add_mutually_exclusive_group()
+    log_group.add_argument(
+        '-q', '--quiet',
+        action='store_true',
+        help='suppress all non-error messages'
+    )
+    log_group.add_argument(
+        '-v', '--verbose',
+        action='store_true',
+        help='display all messages describing the conversion process'
+    )
+
     options = parser.parse_args(args)
     return options
 
@@ -188,30 +190,44 @@ def process_options(args):
 def main():
     args = sys.argv[1:]
     opts = process_options(args)
-    log_level = getattr(log, opts.log_level)
-    log.basicConfig(format='%(levelname)s: %(message)s', level=log_level)
-    log.info('rlis2osm here we go!')
 
-    # suppress fiona's logging unless debugging
-    # if opts.log_level != 'DEBUG':
-    #     log.getLogger('fiona').setLevel(log.ERROR)
+    # tone down fiona's logging as it's very verbose and buries this
+    # packages logging messages
+    if opts.quiet:
+        log_level = log.ERROR
+    elif opts.verbose:
+        log_level = log.DEBUG
+        log.getLogger('Fiona').setLevel(log.INFO)
+    else:
+        log_level = log.INFO
+        log.getLogger('Fiona').setLevel(log.ERROR)
+
+    log.basicConfig(
+        format='%(levelname)s (%(name)s): %(message)s',
+        level=log_level)
+    logger = log.getLogger(__name__)
+    logger.info('rlis2osm: here we go!')
+    logger.info('this conversion should take ten minutes or so...')
 
     paths = data.main(
         src_dir=opts.src_dir,
         dst_dir=opts.dst_dir,
         refresh=opts.refresh)
 
-    log.info('expanding abbreviating street names, translating rlis '
-             'attributes to osm tags and combining street, trail and bike '
-             'information into a single dataset...')
+    logger.info('expanding abbreviating street names, translating rlis '
+                'attributes to osm tags and combining street, trail and bike '
+                'information into a single dataset...')
     expand_translate_combine(paths)
 
-    log.info('merging street and trail segments that have identical '
-             'attributes and that share an end point...')
+    # zip output to keep things tidy
+    paths.combined = zip_shapefile(paths.combined, delete_src=True)
+
+    logger.info('merging street and trail segments that have identical '
+                'attributes and that share an end point...')
     dissolver = WayDissolver()
     dissolver.dissolve_ways(paths.combined, paths.dissolved)
 
-    log.info('converting from shapefile to openstreetmap (.osm) file format:')
+    logger.info('converting from shapefile to openstreetmap (.osm) file format')
     ogr2osm = join(paths.prj_dir, 'bin', 'ogr2osm')
     translation_file = join(paths.prj_dir, 'rlis2osm', 'repair_keys.py')
     check_call([

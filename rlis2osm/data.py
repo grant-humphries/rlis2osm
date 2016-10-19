@@ -11,7 +11,7 @@ from sys import stdout
 
 from humanize import naturalsize
 
-# log = getLogger(__name__)
+logger = log.getLogger(__name__)
 
 RLIS_URL = 'http://library.oregonmetro.gov/rlisdiscovery'
 RLIS_TERMS = 'http://rlisdiscovery.oregonmetro.gov/view/terms.htm'
@@ -116,8 +116,8 @@ def download_rlis(paths, refresh):
                     '(y/n)\n'.format(RLIS_TERMS))
 
                 if user_accept.lower() not in ('y', 'yes'):
-                    log.critical("you've declined RLIS's terms, program "
-                                 "terminating...")
+                    logger.critical("you've declined RLIS's terms, program "
+                                    'terminating...')
                     sys.exit(1)
                 else:
                     accepted_terms = True
@@ -138,10 +138,10 @@ def download_with_progress(url, write_dir):
     block_size = 8192
     logged = 0
 
-    log.info('Download Metadata --v')
-    log.info('target file: {}'.format(file_path))
-    log.info('file size: {}'.format(naturalsize(file_size)))
-    log.info('percent completed:')
+    logger.info('Metadata for Download:')
+    logger.info('target file: {}'.format(file_path))
+    logger.info('file size: {}'.format(naturalsize(file_size)))
+    logger.info('percent completed:')
 
     with open(file_path, 'wb') as file_:
         while True:
@@ -150,7 +150,7 @@ def download_with_progress(url, write_dir):
                 break
 
             file_.write(buffer_)
-            if not log.getLogger().isEnabledFor(log.INFO):
+            if not logger.isEnabledFor(log.INFO):
                 continue
 
             download_size += len(buffer_)

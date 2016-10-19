@@ -78,8 +78,6 @@ class StreetTranslator(object):
             ('tunnel', 'str')
         ])
 
-        # TODO get rid of rlis specific tags, try to capture the info as a
-        # part of the osm standard
         if self.bike_tag_map:
             self.BIKE_FIELDS = {
                 'bicycle': 'str',
@@ -216,6 +214,9 @@ def get_bike_tag_map(bike_feats):
         elif 'OTH-' in bike_infra or bike_there in ('LT', 'MT', 'HT'):
             bicycle = 'designated'
 
+        # I've considered getting rid of this tag since it is not an
+        # accepted osm tag, but no certified tag captures what this
+        # indicates and its used by OTP, so leaving it for now
         if bike_there == 'CA':
             rlis_bicycle = 'caution_area'
 
