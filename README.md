@@ -1,6 +1,7 @@
 
-## rlis2osm
-![rlis2osm in josm](./images/rlis2osm_in_josm.png?raw=true "converted RLIS data in the JOSM editor")
+# rlis2osm
+![rlis2osm in josm](./images/rlis2osm_in_josm_slim.png?raw=true)
+converted RLIS data in the JOSM editor
 
 ### Purpose
 The majority of Oregon Metro's 'Regional Land Information System' ([RLIS](http://www.oregonmetro.gov/rlis-live)) dataset, including its street and trail centerline data, is now under the same license as OpenStreetMap ([OSM](osm.org)), the Open Database License ([ODbL](http://opendatacommons.org/licenses/odbl/)).  This means that edits to OSM that are derived from RLIS are fully compliant with OpenStreetMap's contribution terms.  Significant resources go into keeping the RLIS street and trail data accurate and up-to-date for the Portland metro region which makes them great resources for the improvement of OSM.
