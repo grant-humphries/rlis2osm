@@ -4,15 +4,15 @@
 <small>converted RLIS data loaded in the JOSM editor</small>
 
 ### Purpose
-The majority of Oregon Metro's 'Regional Land Information System' ([RLIS](http://www.oregonmetro.gov/rlis-live)) dataset, including its street and trail centerline data, is now under the same license as OpenStreetMap ([OSM](osm.org)), the Open Database License ([ODbL](http://opendatacommons.org/licenses/odbl/)).  This means that edits to OSM that are derived from RLIS are fully compliant with OpenStreetMap's contribution terms.  Significant resources go into keeping the RLIS street and trail data accurate and up-to-date for the Portland metro region which makes them great resources for the improvement of OSM.
+The majority of Oregon Metro's Regional Land Information System ([RLIS](http://www.oregonmetro.gov/rlis-live)) dataset, including the street, trail and bicycle centerline data that is used in this project, is now under the same license as OpenStreetMap ([OSM](osm.org)): the Open Database License ([ODbL](http://opendatacommons.org/licenses/odbl/)).  This means that edits to OSM that are derived from RLIS are fully compliant with OpenStreetMap's contribution terms.  Significant resources go into keeping RLIS accurate and up-to-date for the Portland metro region which makes it great resources for the improvement of OSM.
 
-However, RLIS and OSM use a significantly different methodologies to classify attributes and RLIS is released in shapefile format which is not ideal for comparison to existing OSM data in an editing environment.  The code here converts the attributes, segmentation (output segments that are contiguous are only split where attributes differ, not at each intersection), and geodata type (outputs to .osm format) of RLIS data to a state that mirrors OSM as closely as possible.
+However, RLIS and OSM use a significantly different methodologies to classify attributes and RLIS is released in shapefile format which is not ideal for comparison to existing OSM data in an editing environment.  The code here converts the attributes, segmentation (splitting connected lines only when attributes differ, not at each intersection), and geodata type (.shp --> .osm format) of RLIS data to a state that mirrors OSM as closely as possible.
 
-Because RLIS is updated and released quarterly the conversion needs to be executed often to have the most recent data available.  Once your system is properly configured this repo makes that process a matter of launching a single shell script.
+Because RLIS is updated and released quarterly the conversion needs to be executed often to keep pace with those improvement.  Once you have the project dependencies in place this tool makes that process a matter of running a single console script.
 
 ### Converting the Data
-This conversion can be carried out in a few ...if you aren't a developer, but are interested in using this data set to improve OSM skip to the 'Using the 
-Data' section **figure out how to link this section in markdown**
+This conversion can be carried out in a few ...if you aren't a developer, but are interested in using this data set to improve OSM skip to the [Using the 
+Data](#using-the-data) section **figure out how to link this section in markdown**
 
 #### Dependencies
 The primary depency of this project is `Python 2.7`, the code has not been tested with any other version. Most of the dependencies for this project are fetched automatically in a later step by a tool called `buildout`, but there are a couple packages that must first be installed manually:
@@ -20,7 +20,7 @@ The primary depency of this project is `Python 2.7`, the code has not been teste
 * fiona
 * shapely (requires GEOS library)
 
-#####Windows
+##### Windows
 if you don't already have gdal installed I recommend using the binaries found [here](http://www.lfd.uci.edu/~gohlke/pythonlibs/#gdal), be sure to match the version of bit level of your python instance to the wheel file you select.  For 64-bit python 2.7 for instance download `GDAL-2.0.3-cp27-cp27m-win_amd64.whl` and then run:
 
 
@@ -31,7 +31,7 @@ if you don't already have gdal installed I recommend using the binaries found [h
     ```
     pip install GDAL-2.0.3-cp27-cp27m-win_amd64.whl
     ```
-#####Mac/Linux
+##### Mac/Linux
 install gdal using your favorite package mananger like `homebrew` or `apt-get` and buildout should be able to fetch the python bindings for you automatically in a later step
 
 #### Steps for Conversion
