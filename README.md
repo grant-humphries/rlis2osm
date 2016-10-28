@@ -11,28 +11,25 @@ However, RLIS and OSM use a significantly different methodologies to classify at
 Because RLIS is updated and released quarterly the conversion needs to be executed often to keep pace with those improvement.  Once you have the project dependencies in place this tool makes that process a matter of running a single console script.
 
 ### Converting the Data
-This conversion can be carried out in a few ...if you aren't a developer, but are interested in using this data set to improve OSM skip to the [Using the 
-Data](#using-the-data) section **figure out how to link this section in markdown**
+This conversion can be carried out in a few minutes once the needed python packages are properly installed, but the tricky part of this process can be getting those dependencies in place.  If you're not interested in setting up the environment and running the code, but would like to use the data to improve OSM, skip to the [Using the Data](#using-the-data) section below.
 
 #### Dependencies
-The primary depency of this project is `Python 2.7`, the code has not been tested with any other version. Most of the dependencies for this project are fetched automatically in a later step by a tool called `buildout`, but there are a couple packages that must first be installed manually:
-* gdal
-* fiona
-* shapely (requires GEOS library)
+The principal dependency of this project is `Python 2.7`, the code has not been tested with any other version of python. Beyond that the only other requirements are several python packages, most of which are fetched automatically by a tool called [`buildout`](https://pypi.python.org/pypi/zc.buildout/2.5.3).  However there are a couple of packages that buildout usually can't handle and those libraries, listed below, must be installed manually:
+* [`GDAL`](http://www.gdal.org/)
+* [`Fiona`]()
+* [`Shapely`]() (requires [`GEOS`]() library)
 
-##### Windows
-if you don't already have gdal installed I recommend using the binaries found [here](http://www.lfd.uci.edu/~gohlke/pythonlibs/#gdal), be sure to match the version of bit level of your python instance to the wheel file you select.  For 64-bit python 2.7 for instance download `GDAL-2.0.3-cp27-cp27m-win_amd64.whl` and then run:
+#### Windows
+There are number of of ways to get the above tools on Windows, but if you don't already have them installed I recommend using the compiled binaries/wheel files found [here](http://www.lfd.uci.edu/~gohlke/pythonlibs) (links: [gdal](http://www.lfd.uci.edu/~gohlke/pythonlibs/#gdal), [fiona](http://www.lfd.uci.edu/~gohlke/pythonlibs/#fiona), [shapely](http://www.lfd.uci.edu/~gohlke/pythonlibs/#shapely)).  Several variants of the wheel files are offered so be sure to match the version and bit level of your python instance to the file that you select.  For instance to install gdal to 64-bit python 2.7 you would use download the `.whl` file below and use the following command:  
+`pip install GDAL-2.0.3-cp27-cp27m-win_amd64.whl`
 
 
-* [zc.buildout](https://pypi.python.org/pypi/zc.buildout/2.5.3)  
+* [zc.buildout]()  
   to install this python package from the command line run: `pip install zc.buildout`
-* [GDAL](http://www.gdal.org/) (and python bindings for GDAL)
+* [GDAL]() (and python bindings for GDAL)
 
-    ```
-    pip install GDAL-2.0.3-cp27-cp27m-win_amd64.whl
-    ```
-##### Mac/Linux
-install gdal using your favorite package mananger like `homebrew` or `apt-get` and buildout should be able to fetch the python bindings for you automatically in a later step
+#### Mac/Linux
+Install gdal using your favorite package mananger like `homebrew` or `apt-get` and buildout should be able to fetch the python bindings for you automatically in a later step
 
 #### Steps for Conversion
 One the above dependecies are in place the hard part is over.  Follow the steps below to create the rlis.osm file that can be used in OSM editors
