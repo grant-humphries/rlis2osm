@@ -14,27 +14,31 @@ Because RLIS is updated and released quarterly the conversion needs to be execut
 This conversion can be carried out in a few minutes once the needed python packages are properly installed, but the tricky part of this process can be getting those dependencies in place.  If you're not interested in setting up the environment and running the code, but would like to use the data to improve OSM, skip to the [Using the Data](#using-the-data) section below.
 
 #### Dependencies
-The principal dependency of this project is `Python 2.7`, the code has not been tested with any other version of python. Beyond that the only other requirements are several python packages, most of which are fetched automatically by a tool called [`buildout`](https://pypi.python.org/pypi/zc.buildout/2.5.3).  However there are a couple of packages that buildout usually can't handle and those libraries, listed below, must be installed manually:
+The principal dependency of this project is `Python 2.7`, the code has not been tested with any other version of python. Beyond that the only other requirements are several python packages, most of which are automatically fetched by a tool called [`buildout`](https://pypi.python.org/pypi/zc.buildout/2.5.3).  However there are a couple of packages that buildout usually can't handle and those libraries, listed below, must be installed manually:
 * [`GDAL`](http://www.gdal.org/)
-* [`Fiona`]()
-* [`Shapely`]() (requires [`GEOS`]() library)
+* [`Fiona`](https://github.com/Toblerity/Fiona)
+* [`Shapely`](https://github.com/Toblerity/Shapely) (requires [`GEOS`](https://trac.osgeo.org/geos/) library)
 
 #### Windows
-There are number of of ways to get the above tools on Windows, but if you don't already have them installed I recommend using the compiled binaries/wheel files found [here](http://www.lfd.uci.edu/~gohlke/pythonlibs) (links: [gdal](http://www.lfd.uci.edu/~gohlke/pythonlibs/#gdal), [fiona](http://www.lfd.uci.edu/~gohlke/pythonlibs/#fiona), [shapely](http://www.lfd.uci.edu/~gohlke/pythonlibs/#shapely)).  Several variants of the wheel files are offered so be sure to match the version and bit level of your python instance to the file that you select.  For instance to install gdal to 64-bit python 2.7 you would use download the `.whl` file below and use the following command:  
-`pip install GDAL-2.0.3-cp27-cp27m-win_amd64.whl`
-
-
-* [zc.buildout]()  
-  to install this python package from the command line run: `pip install zc.buildout`
-* [GDAL]() (and python bindings for GDAL)
+There are number of of ways to get the above tools on Windows, but if you don't already have them installed I recommend using the compiled binaries/wheel files found [here](http://www.lfd.uci.edu/~gohlke/pythonlibs) (links: [gdal](http://www.lfd.uci.edu/~gohlke/pythonlibs/#gdal), [fiona](http://www.lfd.uci.edu/~gohlke/pythonlibs/#fiona), [shapely](http://www.lfd.uci.edu/~gohlke/pythonlibs/#shapely)).  Several variants of the wheel files are offered so be sure to match the version and bit level of your python instance to the file that you select.  For instance to install gdal to 64-bit python 2.7 you would use download the `.whl` file below and use the following command 
+```
+pip install GDAL-2.0.3-cp27-cp27m-win_amd64.whl
+```
 
 #### Mac/Linux
-Install gdal using your favorite package mananger like `homebrew` or `apt-get` and buildout should be able to fetch the python bindings for you automatically in a later step
+Install the gdal and geos libraries using your favorite package manager like `homebrew` or `apt-get` and buildout should be able to fetch the python bindings that you'll need automatically.  On mac, installing gdal with homebrew would look like this:
+```
+brew install gdal
+```
 
 #### Steps for Conversion
-One the above dependecies are in place the hard part is over.  Follow the steps below to create the rlis.osm file that can be used in OSM editors
-1. if you don't already have the python package zc.buildout install from the command line as such: `pip install zc.buildout`
-2. from the home directory of this 
+One the above dependencies are the rest of the process should be straight-forward.  Follow the steps below to create the rlis.osm file that can be used in OSM editors
+1. if you don't yet have buildout installed do so with the following command:
+```
+pip install zc.buildout
+```
+2. from the home directory of this repo enter the command `buildout`, it may take a few minutes for buildout to fetch all of the packages that the project requires
+3. the previous step generated the console script that carries out 
 
 
 
