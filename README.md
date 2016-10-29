@@ -31,22 +31,36 @@ Install the gdal and geos libraries using your favorite package manager like `ho
 brew install gdal
 ```
 
-#### Steps for Conversion
-One the above dependencies are the rest of the process should be straight-forward.  Follow the steps below to create the rlis.osm file that can be used in OSM editors
+#### Conversion Instructions
+Once the above dependencies are the rest of the process should be straight-forward.  Follow the steps below to create the rlis.osm file that can be used in OSM editors
 1. if you don't yet have buildout installed do so with the following command:
 ```
 pip install zc.buildout
 ```
-2. from the home directory of this repo enter the command `buildout`, it may take a few minutes for buildout to fetch all of the packages that the project requires
-3. the previous step generated the console script that carries out 
+2. from the home directory of this repo enter the command below, it may take a few minutes for buildout to fetch all of the packages that the project requires:
+```
+buildout
+```
+3. the previous step generates the console script that performs the conversion, to launch it from the home directory enter:
+```
+./bin/rlis2osm
+```
+to obtain information on the script's options use:
+```
+./bin/rlis2osm --help
+```
+<br>
 
-
+Once the script has been launched wait 10 minutes or so for the conversion to be carried out and the converted osm file will be written to: `./data/rlis.osm`
 
 ### Using the Data
-**Note!!!** Upon successfully transforming the data do not add the tags that appear on the output to OpenStreetMap without first considering if they are a good fit for what is being mapped.  Much effort has been put into making this conversion as accurate as possible (with reliance on the [OSM Wiki](wiki.osm.org)), but streets and trails that have common attributes in RLIS may not always map to the same tags in OSM.  Use aerial imagery, the wiki, and any other license compliant resources that you have at your disposal to ensure that the attributes are accurate and in line with OSM convention before uploading them.
+**Note!!!** When using the converted `rlis.osm` Upon successfully transforming the data do not add the tags that appear on the output to OpenStreetMap without first considering if they are a good fit for what is being mapped.  Much effort has been put into making this conversion as accurate as possible (with reliance on the [OSM Wiki](wiki.osm.org)), but streets and trails that have common attributes in RLIS may not always map to the same tags in OSM.  Use aerial imagery, the wiki, and any other license compliant resources that you have at your disposal to ensure that the attributes are accurate and in line with OSM convention before uploading them.
 
-* notes on possible hosting of the output go here
+#### Hosted Data
+I'm presently looking for hosting options for this data so that it can simply be downloaded without having to deal with the code.  If you have a hosting solution drop me a line by opening a ticket in the issues section of this repo.
 
+#### Adding `rlis.osm` to JOSM
 * instructions on how to bring this large file into JOSM go here
 
-* note about reporting bugs or new features
+#### Requesting Features and Reporting Bugs
+If there is functionality or further data that you would like to see added or if something looks off with the data feel free to open a ticket [here](https://github.com/grant-humphries/rlis2osm/issues).
