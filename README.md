@@ -35,21 +35,21 @@ brew install gdal
 With the dependencies in place follow the steps below to create the file `rlis.osm` which can be used in OSM editors:
 
 1. if you don't yet have buildout installed do so with the following command:
-```
-pip install zc.buildout
-```
+    ```
+    pip install zc.buildout
+    ```
 2. from the home directory of this repo enter the text below, it may take a few minutes for buildout to fetch all of the packages that the project requires:
-```
-buildout
-```
+    ```
+    buildout
+    ```
 3. the previous step generates the console script that performs the conversion, to launch it from the home directory enter:
-```
-./bin/rlis2osm
-```
-to obtain information on script usage and options use:
-```
-./bin/rlis2osm --help
-```
+    ```
+    ./bin/rlis2osm
+    ```
+    to obtain information on script usage and options use:
+    ```
+    ./bin/rlis2osm --help
+    ```
 <br>
 
 The execution should take 10 minutes or so and the converted OSM file will be written to: `./data/rlis.osm` within the directory structure of your cloned repo (unless you specify a different write location).
