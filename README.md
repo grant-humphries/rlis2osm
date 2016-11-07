@@ -70,7 +70,7 @@ The Java OpenStreetMap Editor ([JOSM](https://josm.openstreetmap.de/)) has the a
 java -Xmx1G -jar /path/to/your/josm/jar/file/josm-tested.jar
 ```
 the `1G` in the snippet above is the amount of memory being allotted to JOSM (1 gigabyte in this case), you can adjust this, but it should be at least 200 MB to accommodate the file and the app's other data and functionality.  If using JOSM webstart (which automatically updates the app each time you open it) you may need to modify its auto-created shortcut.  At last check webstart worked out of the box for me on Mac, but on Windows I had to change the shortcut command to something like the code below.  If you're unable to get things running you can read more about this [here](https://josm.openstreetmap.de/wiki/Download#VMselectiononWindowsx64).
-```
+```bat
 "P:\ath\to\java\webstart\javaws.exe" ^
     -J-d64 ^
     -Xmx=2048m ^ 
