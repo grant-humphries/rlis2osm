@@ -10,7 +10,7 @@ setup(
     description='',
     entry_points={
         'console_scripts': [
-            'ogr2osm = ogr2osm.ogr2osm:main',
+            'ogr2osm = ogr2osm.main:main',
             'rlis2osm = rlis2osm.main:main'
         ]
     },
