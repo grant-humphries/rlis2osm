@@ -1,4 +1,4 @@
-from collections import OrderedDict
+from collections import defaultdict, OrderedDict
 
 
 class StreetTranslator(object):
@@ -40,13 +40,7 @@ class StreetTranslator(object):
         2000: 'unpaved'
     }
 
-    def __init__(self, bike_tag_map=None):
-        # provide bike tag mapping to include bicycle tags
-        self.bike_tag_map = bike_tag_map
-        self.BIKE_FIELDS = None
-        self.OSM_FIELDS = None
-        self._define_fields()
-
+    def __init__(self):
         # rlis streets fields
         self.direction = None
         self.f_type = None
@@ -65,8 +59,7 @@ class StreetTranslator(object):
         self.name = None
         self.tunnel = None
 
-    def _define_fields(self):
-        fields = OrderedDict([
+        self.OSM_FIELDS = OrderedDict([
             ('access', 'str'),
             ('bridge', 'str'),
             ('description', 'str'),
@@ -77,17 +70,6 @@ class StreetTranslator(object):
             ('surface', 'str'),
             ('tunnel', 'str')
         ])
-
-        if self.bike_tag_map:
-            self.BIKE_FIELDS = {
-                'bicycle': 'str',
-                'cycleway': 'str',
-                'RLIS:bicycle': 'str'
-            }
-            fields.update(self.BIKE_FIELDS)
-            fields = OrderedDict((sorted(fields.items())))
-
-        self.OSM_FIELDS = fields
 
     def translate(self, attributes):
         self.local_id = attributes['LOCALID']
@@ -184,56 +166,6 @@ class StreetTranslator(object):
             self.bridge = 'yes'
         elif self.layer < 0:
             self.tunnel = 'yes'
-
-
-def get_bike_tag_map(bike_feats):
-    # if the bike feature is a street the value in 'BIKEID' with match
-    # the 'LOCALID' of the same segment in rlis streets
-    bike_tag_map = dict()
-
-    for feat in bike_feats:
-        tags = feat['properties']
-        bike_id = tags['BIKEID']
-        bike_infra = tags['BIKETYP'] or ''
-        bike_there = tags['BIKETHERE']
-
-        bicycle, cycleway, rlis_bicycle = None, None, None
-
-        if not bike_infra and not bike_there:
-            continue
-
-        if bike_infra in ('BKE-BLVD', 'BKE-SHRD'):
-            cycleway = 'shared_lane'
-        elif bike_infra in ('BKE-BUFF', 'BKE-LANE'):
-            cycleway = 'lane'
-        elif bike_infra == 'BKE-TRAK':
-            cycleway = 'track'
-        elif bike_infra == 'SHL-WIDE':
-            cycleway = 'shoulder'
-        # covers 'OTH-CONN', 'OTH-SWLK', 'OTH-XING' values
-        elif 'OTH-' in bike_infra or bike_there in ('LT', 'MT', 'HT'):
-            bicycle = 'designated'
-
-        # I've considered getting rid of this tag since it is not an
-        # accepted osm tag, but no certified tag captures what this
-        # indicates and its used by OTP, so leaving it for now
-        if bike_there == 'CA':
-            rlis_bicycle = 'caution_area'
-
-        # when segments that also exist in the streets data set need to
-        # be split in the bike data the are prefixed with 9**, that
-        # prefix must be striped in order to link between the two
-        string_bid = str(bike_id)
-        if len(string_bid) > 6:
-            bike_id = int(string_bid[-6:])
-
-        bike_tag_map[bike_id] = {
-            'bicycle': bicycle,
-            'cycleway': cycleway,
-            'RLIS:bicycle': rlis_bicycle
-        }
-
-    return bike_tag_map
 
 
 class TrailsTranslator(object):
@@ -494,6 +426,66 @@ class TrailsTranslator(object):
 
         if self.agency_name != 'Unknown':
             self.operator = self.agency_name
+
+
+def generate_bike_mapping(bike_feats):
+    """if the bike feature is a street the value in 'BIKEID' with match
+    the 'LOCALID' of the same segment in rlis streets
+    """
+
+    bike_mapping = defaultdict(list)
+
+    for fid, feat in bike_feats.items():
+        attrs = feat['properties']
+        bike_infra = attrs['BIKETYP'] or ''
+        bike_there = attrs['BIKETHERE']
+
+        if not bike_infra and not bike_there:
+            continue
+
+        bike_id = attrs['BIKEID']
+        bicycle, cycleway, rlis_bicycle = None, None, None
+
+        if bike_infra in ('BKE-BLVD', 'BKE-SHRD'):
+            cycleway = 'shared_lane'
+        elif bike_infra in ('BKE-BUFF', 'BKE-LANE'):
+            cycleway = 'lane'
+        elif bike_infra == 'BKE-TRAK':
+            cycleway = 'track'
+        elif bike_infra == 'SHL-WIDE':
+            cycleway = 'shoulder'
+        # covers 'OTH-CONN', 'OTH-SWLK', 'OTH-XING' values
+        elif 'OTH-' in bike_infra or bike_there in ('LT', 'MT', 'HT'):
+            bicycle = 'designated'
+
+        # I've considered getting rid of this tag since it is not an
+        # accepted osm tag, but no certified tag captures what this
+        # indicates and it's used by OTP, so leaving it for now
+        if bike_there == 'CA':
+            rlis_bicycle = 'caution_area'
+
+        feat_info = {
+            'fid': fid,
+            'bike_id': bike_id,
+            'tags': {
+                'bicycle': bicycle,
+                'cycleway': cycleway,
+                'RLIS:bicycle': rlis_bicycle
+            }
+        }
+
+        # some segments that also exist in the streets data are split
+        # in the bike data the are prefixed with 9**, that prefix must
+        # be striped in order to link back to the streets
+        string_bid = str(bike_id)
+        if len(string_bid) > 6:
+            local_id = int(string_bid[-6:])
+        else:
+            local_id = bike_id
+
+        bike_mapping[local_id].append(feat_dict)
+
+    return bike_mapping
 
 
 def n_any(iterable, n):
