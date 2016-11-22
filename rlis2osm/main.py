@@ -13,8 +13,8 @@ from titlecase import set_small_word_list, titlecase, SMALL
 from rlis2osm import data
 from rlis2osm.dissolve import WayDissolver
 from rlis2osm.expand import StreetNameExpander
-from rlis2osm.translate import get_bike_tag_map, StreetTranslator, \
-    TrailsTranslator
+from rlis2osm.translate import generate_bike_mapping, StreetTranslator, \
+    TrailsTranslator, OSM_BIKE_FIELDS
 from rlis2osm.utils import zip_path, zip_shapefile
 
 RLIS_ENCODING = 'cp1252'
@@ -48,16 +48,17 @@ def expand_translate_combine(paths):
     expander = StreetNameExpander(special_cases=RLIS_SPECIAL)
     tc_callback = customize_titlecase()
 
-    bike_routes = fiona.open(**zip_path(paths.bikes, encoding=RLIS_ENCODING))
-    bike_mapping = get_bike_tag_map(bike_routes)
-    street_trans = StreetTranslator(bike_mapping)
+    street_trans = StreetTranslator()
     trail_trans = TrailsTranslator()
+    bike_routes = fiona.open(**zip_path(paths.bikes, encoding=RLIS_ENCODING))
+    bike_mapping = generate_bike_mapping(bike_routes)
 
-    s_fields = street_trans.OSM_FIELDS
+    s_fields = dict(street_trans.OSM_FIELDS, **OSM_BIKE_FIELDS)
     t_fields = trail_trans.OSM_FIELDS
     combined_fields = OrderedDict(sorted(s_fields.items() + t_fields.items()))
     street_filler = {k: None for k in t_fields if k not in s_fields}
     trail_filler = {k: None for k in s_fields if k not in t_fields}
+    bike_filler = {k: None for k in OSM_BIKE_FIELDS}
 
     streets = fiona.open(**zip_path(paths.streets, encoding=RLIS_ENCODING))
     trails = fiona.open(**zip_path(paths.trails, encoding=RLIS_ENCODING))
@@ -88,11 +89,28 @@ def expand_translate_combine(paths):
             tags = street_trans.translate(attrs)
             name_tag = (tags['name'] or '').lower()
             tags['name'] = titlecase(name_tag, callback=tc_callback)
-
             tags.update(street_filler)
-            s['properties'] = tags
 
-            combined.write(s)
+            # not all streets are in the bike mapping, but a key error
+            # is not thrown because a defaultdict is being used
+            bike_features = bike_mapping[attrs['LOCALID']]
+            bf_count = len(bike_features)
+            if bf_count == 0:
+                tags.update(bike_filler)
+                s['properties'] = tags
+                combined.write(s)
+            else:
+                # if there is more than one bike feature associated with a
+                # street the street's geometry needs to be swapped out for
+                # the segmented version in the bike data
+                for bf in bike_features:
+                    if bf_count > 1:
+                        bike_fid = bf['fid']
+                        s['geometry'] = bike_routes[bike_fid]['geometry']
+
+                    tags.update(bf['tags'])
+                    s['properties'] = tags
+                    combined.write(s)
 
         for t in trails:
             attrs = t['properties']
@@ -121,6 +139,7 @@ def expand_translate_combine(paths):
 
     streets.close()
     trails.close()
+    bike_routes.close()
 
 
 def customize_titlecase():
@@ -214,7 +233,7 @@ def main():
         dst_dir=opts.dst_dir,
         refresh=opts.refresh)
 
-    logger.info('expanding abbreviating street names, translating rlis '
+    logger.info('expanding abbreviated street names, translating rlis '
                 'attributes to osm tags and combining street, trail and bike '
                 'information into a single dataset...')
     expand_translate_combine(paths)
@@ -222,16 +241,15 @@ def main():
     # zip output to keep things tidy
     paths.combined = zip_shapefile(paths.combined, delete_src=True)
 
-    logger.info('merging street and trail segments that have identical '
-                'attributes and that share an end point...')
+    logger.info('merging connected segments that have identical attributes:')
     dissolver = WayDissolver()
     dissolver.dissolve_ways(paths.combined, paths.dissolved)
 
-    logger.info('converting from shapefile to openstreetmap (.osm) file format')
+    logger.info('converting from shapefile to openstreetmap (.osm) format...')
     ogr2osm = join(paths.prj_dir, 'bin', 'ogr2osm')
     translation_file = join(paths.prj_dir, 'rlis2osm', 'repair_keys.py')
     check_call([
-        ogr2osm, '-f',
+        ogr2osm, '-f', '-q',
         '-e', str(RLIS_EPSG),
         '-o', paths.osm,
         '-t', translation_file,

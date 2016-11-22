@@ -99,12 +99,6 @@ class StreetTranslator(object):
             'tunnel': self.tunnel
         }
 
-        # add bike tags if map provided
-        if self.bike_tag_map:
-            bike_tags = {k: None for k in self.BIKE_FIELDS}
-            bike_tags = self.bike_tag_map.get(self.local_id, bike_tags)
-            tags.update(bike_tags)
-
         return tags
 
     def _reset_osm_tags(self):
@@ -428,14 +422,23 @@ class TrailsTranslator(object):
             self.operator = self.agency_name
 
 
-def generate_bike_mapping(bike_feats):
-    """if the bike feature is a street the value in 'BIKEID' with match
-    the 'LOCALID' of the same segment in rlis streets
+OSM_BIKE_FIELDS = OrderedDict([
+    ('bicycle', 'str'),
+    ('cycleway', 'str'),
+    ('RLIS:bicycle', 'str')
+
+])
+
+
+def generate_bike_mapping(bike_features):
+    """Creates a dictionary that links bike infrastructure to their
+    corresonding features in the streets data set via the relationship
+    between the former's 'BIKEID' and the latter's 'LOCALID'
     """
 
     bike_mapping = defaultdict(list)
 
-    for fid, feat in bike_feats.items():
+    for fid, feat in bike_features.items():
         attrs = feat['properties']
         bike_infra = attrs['BIKETYP'] or ''
         bike_there = attrs['BIKETHERE']
@@ -443,8 +446,10 @@ def generate_bike_mapping(bike_feats):
         if not bike_infra and not bike_there:
             continue
 
+        bicycle = None
+        cycleway = None
+        rlis_bicycle = None
         bike_id = attrs['BIKEID']
-        bicycle, cycleway, rlis_bicycle = None, None, None
 
         if bike_infra in ('BKE-BLVD', 'BKE-SHRD'):
             cycleway = 'shared_lane'
@@ -458,9 +463,9 @@ def generate_bike_mapping(bike_feats):
         elif 'OTH-' in bike_infra or bike_there in ('LT', 'MT', 'HT'):
             bicycle = 'designated'
 
-        # I've considered getting rid of this tag since it is not an
-        # accepted osm tag, but no certified tag captures what this
-        # indicates and it's used by OTP, so leaving it for now
+        # I've considered getting rid of this tag since it has gone
+        # through OSM's approval process, but no tag that has captures
+        # what this indicates and it's used by OTP, so leaving it for now
         if bike_there == 'CA':
             rlis_bicycle = 'caution_area'
 
@@ -474,16 +479,17 @@ def generate_bike_mapping(bike_feats):
             }
         }
 
-        # some segments that also exist in the streets data are split
-        # in the bike data the are prefixed with 9**, that prefix must
-        # be striped in order to link back to the streets
-        string_bid = str(bike_id)
-        if len(string_bid) > 6:
-            local_id = int(string_bid[-6:])
-        else:
-            local_id = bike_id
+        # *NOTE*: bike features usually use the 'LOCALID' from streets
+        # data as it's 'BIKEID' if the feature exists there as well,
+        # however sometimes those segments need to be split to
+        # accurately represent the infrastructure, in those cases the
+        # BIKEID is the LOCALID of the original feature prefixed with
+        # 9**, this keeps the ids unique and provides a way to link
+        # back to the original feature
 
-        bike_mapping[local_id].append(feat_dict)
+        # LOCALID should be the last 6 digits of the BIKEID
+        local_id = int(str(bike_id)[-6:])
+        bike_mapping[local_id].append(feat_info)
 
     return bike_mapping
 

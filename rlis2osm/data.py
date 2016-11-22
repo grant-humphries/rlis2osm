@@ -15,11 +15,10 @@ logger = log.getLogger(__name__)
 
 RLIS_URL = 'http://library.oregonmetro.gov/rlisdiscovery'
 RLIS_TERMS = 'http://rlisdiscovery.oregonmetro.gov/view/terms.htm'
+TRIMET_RLIS = '//gisstore/gis/Rlis'
 
 
 class RlisPaths(object):
-
-    TRIMET_RLIS = '//gisstore/gis/Rlis'
 
     STREETS = 'streets'
     TRAILS = 'trails'
@@ -49,8 +48,8 @@ class RlisPaths(object):
     def _get_source_dir(self, src_dir):
         if src_dir:
             pass
-        elif exists(self.TRIMET_RLIS):
-            src_dir = self.TRIMET_RLIS
+        elif exists(TRIMET_RLIS):
+            src_dir = TRIMET_RLIS
         else:
             src_dir = self.data_dir
 
@@ -59,24 +58,28 @@ class RlisPaths(object):
     def _get_destination_dir(self, dst_dir):
         if dst_dir:
             pass
-        elif self.src_dir == self.TRIMET_RLIS:
+        elif self.src_dir == TRIMET_RLIS:
             mod_time = datetime.fromtimestamp(getmtime(self.streets))
             dst_dir = join(
-                dirname(self.TRIMET_RLIS), 'PUBLIC', 'OpenStreetMap',
-                'RLIS', 'RLIS_osm_data', mod_time.strftime('%Y_%m'))
+                dirname(self.src_dir),
+                'PUBLIC',
+                'OpenStreetMap',
+                'RLIS',
+                'RLIS_osm_data',
+                mod_time.strftime('%Y_%m'))
         else:
             dst_dir = self.data_dir
 
         return dst_dir
 
     def _get_source_paths(self):
-        if self.src_dir == self.TRIMET_RLIS:
+        if self.src_dir == TRIMET_RLIS:
             rlis_map = self._get_rlis_structure()
-            streets = join(self.TRIMET_RLIS, rlis_map[self.STREETS],
+            streets = join(self.src_dir, rlis_map[self.STREETS],
                            '{}.shp'.format(self.STREETS))
-            trails = join(self.TRIMET_RLIS, rlis_map[self.TRAILS],
+            trails = join(self.src_dir, rlis_map[self.TRAILS],
                           '{}.shp'.format(self.TRAILS))
-            bikes = join(self.TRIMET_RLIS, rlis_map[self.BIKES],
+            bikes = join(self.src_dir, rlis_map[self.BIKES],
                          '{}.shp'.format(self.BIKES))
         else:
             streets = join(self.src_dir, '{}.zip'.format(self.STREETS))
@@ -92,8 +95,8 @@ class RlisPaths(object):
     def _get_rlis_structure(self):
         rlis_map = dict()
 
-        for dir_ in os.listdir(self.TRIMET_RLIS):
-            dir_path = join(self.TRIMET_RLIS, dir_)
+        for dir_ in os.listdir(TRIMET_RLIS):
+            dir_path = join(TRIMET_RLIS, dir_)
             if isdir(dir_path):
                 for file_ in os.listdir(dir_path):
                     if file_.endswith('.shp'):
@@ -103,7 +106,7 @@ class RlisPaths(object):
         return rlis_map
 
 
-def download_rlis(paths, refresh):
+def download_rlis(paths, refresh=False):
     accepted_terms = False
 
     for ds in (paths.streets, paths.trails, paths.bikes):
@@ -176,7 +179,7 @@ def main(src_dir=None, dst_dir=None, refresh=False):
 
     # do not download/refresh data if user has supplied a source path
     # or if working in TriMet environment
-    if paths.src_dir == paths.data_dir:
+    if paths.src_dir != TRIMET_RLIS:
         download_rlis(paths, refresh)
 
     return paths

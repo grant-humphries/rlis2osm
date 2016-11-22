@@ -28,6 +28,7 @@ class WayDissolver(object):
         meta_fields = metadata['schema']['properties']
         self._filter_tags(meta_fields)
 
+        logger.info('combining dissolve group geometries...')
         with fiona.open(dst_path, 'w', **metadata) as dissolve_shp:
             for group in way_groups:
                 geom_list = list()
@@ -50,8 +51,8 @@ class WayDissolver(object):
     def _determine_way_groups(self):
         node_way_map, way_nodes = self._map_end_pts_to_ways()
 
-        logger.info('determining dissolve groups...'
-                    'number of features processed:')
+        logger.info('determining dissolve groups...')
+        logger.debug('number of features processed:')
 
         # a set is used here instead of a list because many lookups must
         # be done on this collection and it reaches a large size
@@ -95,7 +96,7 @@ class WayDissolver(object):
 
         # the log set doesn't include a new line after it writes so
         # create one here so further logging info will be readable
-        if logger.isEnabledFor(log.INFO):
+        if logger.isEnabledFor(log.DEBUG):
             stdout.write('\n')
 
         return way_groups
@@ -179,16 +180,13 @@ class LogSet(set):
 
         self.add(list_obj)
 
-        if not logger.isEnabledFor(log.INFO):
+        if not logger.isEnabledFor(log.DEBUG):
             return
 
         counter = len(self)
         if counter % self.num_value == 0:
             stdout.write('{:,}'.format(counter))
             stdout.flush()
-
-            if not logger.isEnabledFor(log.DEBUG):
-                return
 
             block_time = time() - self.start_time
             stdout.write('    time elapsed: {}\n'.format(block_time))
