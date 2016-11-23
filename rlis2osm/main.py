@@ -210,14 +210,16 @@ def main():
     args = sys.argv[1:]
     opts = process_options(args)
 
-    # tone down fiona's logging as it's very verbose and buries this
-    # packages logging messages
+    ogr2osm_verbosity = '-q'
     if opts.quiet:
         log_level = log.ERROR
     elif opts.verbose:
         log_level = log.DEBUG
         log.getLogger('Fiona').setLevel(log.INFO)
+        ogr2osm_verbosity = '-v'
     else:
+        # tone down fiona's logging as it's very verbose and buries
+        # this packages logging messages
         log_level = log.INFO
         log.getLogger('Fiona').setLevel(log.ERROR)
 
@@ -249,7 +251,9 @@ def main():
     ogr2osm = join(paths.prj_dir, 'bin', 'ogr2osm')
     translation_file = join(paths.prj_dir, 'rlis2osm', 'repair_keys.py')
     check_call([
-        ogr2osm, '-f', '-q',
+        ogr2osm,
+        '-f',
+        ogr2osm_verbosity,
         '-e', str(RLIS_EPSG),
         '-o', paths.osm,
         '-t', translation_file,
