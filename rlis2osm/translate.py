@@ -12,7 +12,7 @@ class StreetTranslator(object):
     REV_ACCESS_MAP = {
         'private': (1700, 1740, 1750, 1760, 1800, 1850),
         'no': (5402,)}
-    ACCESS_MAP = {i: k for k, v in REV_ACCESS_MAP.items() for i in v}
+    ACCESS_MAP = {i: k for k, v in REV_ACCESS_MAP.iteritems() for i in v}
 
     # TYPE --> highway
     REV_HIGHWAY_MAP = {
@@ -27,13 +27,13 @@ class StreetTranslator(object):
         'residential': (1500, 1550, 1700, 1740, 2000, 8224),
         'service': (1560, 1600, 1750, 1760, 1800, 1850),
         'track': (9000,)}
-    HIGHWAY_MAP = {i: k for k, v in REV_HIGHWAY_MAP.items() for i in v}
+    HIGHWAY_MAP = {i: k for k, v in REV_HIGHWAY_MAP.iteritems() for i in v}
 
     # TYPE --> service
     REV_SERVICE_MAP = {
         'alley': (1600,),
         'driveway': (1750, 1850)}
-    SERVICE_MAP = {i: k for k, v in REV_SERVICE_MAP.items() for i in v}
+    SERVICE_MAP = {i: k for k, v in REV_SERVICE_MAP.iteritems() for i in v}
 
     # TYPE --> surface
     SURFACE_MAP = {
@@ -438,7 +438,7 @@ def generate_bike_mapping(bike_features):
 
     bike_mapping = defaultdict(list)
 
-    for fid, feat in bike_features.items():
+    for fid, feat in bike_features.iteritems():
         attrs = feat['properties']
         bike_infra = attrs['BIKETYP'] or ''
         bike_there = attrs['BIKETHERE']

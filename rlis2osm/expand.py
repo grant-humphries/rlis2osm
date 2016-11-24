@@ -87,7 +87,7 @@ class StreetNameExpander(object):
         ('VA', 'Veteran Affairs', 'f')
     ]
 
-    def __init__(self, delimiter='-', separators=(' ', '/'), special_cases=None):
+    def __init__(self, delimiter='-', separators=(' ', '/'), special=None):
         """In this context a delimiter is a character that divides what
         could be two distinct names that have been combined into one,
         separators are characters between words that together form a
@@ -96,11 +96,11 @@ class StreetNameExpander(object):
 
         self.delimiter = delimiter
         self.separators = separators
-        self.special_cases = special_cases
+        self.special_cases = special
         self.expander = self._prep_expander()
 
     def _prep_expander(self):
-        combo_dir = {a: x for a, x in self.DIRECTION.items() if len(a) > 1}
+        combo_dir = {a: x for a, x in self.DIRECTION.iteritems() if len(a) > 1}
         
         if self.special_cases:
             self.BASENAME += self.special_cases

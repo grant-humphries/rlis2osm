@@ -58,7 +58,7 @@ class WayDissolver(object):
         # be done on this collection and it reaches a large size
         assigned = LogSet()
         way_groups = list()
-        for fid, feat in self.ways.items():
+        for fid, feat in self.ways.iteritems():
             if fid in assigned:
                 continue
 
@@ -87,9 +87,9 @@ class WayDissolver(object):
                     # the non-shared node of the current feature becomes a new
                     # end point for the group and the connected_ways loop is
                     # broken as its remaining features are no longer candidates
-                    connect_nodes = way_nodes[connect_id].values()
-                    add_node = [cn for cn in connect_nodes if cn != n]
-                    nodes.extend(add_node)
+                    node_a, node_b = way_nodes[connect_id].values()
+                    add_node = node_a if node_a != n else node_b
+                    nodes.append(add_node)
                     break
 
             way_groups.append(group)
@@ -127,7 +127,7 @@ class WayDissolver(object):
         node_way_map = defaultdict(list)
         way_nodes = dict()
 
-        for fid, feat in self.ways.items():
+        for fid, feat in self.ways.iteritems():
             geom = shape(feat['geometry'])
 
             # multigeometries don't have a coords attribute, and splitting to
