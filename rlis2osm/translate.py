@@ -438,7 +438,7 @@ def generate_bike_mapping(bike_features):
 
     bike_mapping = defaultdict(list)
 
-    for fid, feat in bike_features.iteritems():
+    for fid, feat in bike_features.items():
         attrs = feat['properties']
         bike_infra = attrs['BIKETYP'] or ''
         bike_there = attrs['BIKETHERE']

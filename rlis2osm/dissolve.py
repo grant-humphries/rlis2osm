@@ -58,7 +58,7 @@ class WayDissolver(object):
         # be done on this collection and it reaches a large size
         assigned = LogSet()
         way_groups = list()
-        for fid, feat in self.ways.iteritems():
+        for fid, feat in self.ways.items():
             if fid in assigned:
                 continue
 
@@ -127,7 +127,7 @@ class WayDissolver(object):
         node_way_map = defaultdict(list)
         way_nodes = dict()
 
-        for fid, feat in self.ways.iteritems():
+        for fid, feat in self.ways.items():
             geom = shape(feat['geometry'])
 
             # multigeometries don't have a coords attribute, and splitting to
