@@ -45,7 +45,7 @@ RLIS_SPECIAL = [
 
 
 def expand_translate_combine(paths):
-    expander = StreetNameExpander(special_cases=RLIS_SPECIAL)
+    expander = StreetNameExpander(special=RLIS_SPECIAL)
     tc_callback = customize_titlecase()
 
     street_trans = StreetTranslator()

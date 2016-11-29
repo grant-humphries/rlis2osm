@@ -1,6 +1,9 @@
 import os
+from collections import defaultdict
 from os.path import basename, dirname, join, splitext
 from zipfile import ZipFile
+
+from shapely.geometry import LineString
 
 
 def zip_path(path, **kwargs):
@@ -47,3 +50,30 @@ def zip_shapefile(shp_path, zip_name=None, delete_src=False):
                     os.remove(file_path)
 
     return zip_shp_path
+
+
+def extract_linear_rings(geom):
+    try:
+        coords = geom.coords
+    except NotImplementedError:
+        from shapely.geometry import mapping
+        for part in geom:
+            print mapping(part)
+        exit()
+
+    coord_pos = defaultdict(list)
+    for i, coord in enumerate(geom.coords):
+        coord_pos[coord].append(i)
+
+    # start with first and last coordinate indexes in set
+    split_pts = set([0, len(coords) - 1])
+    for indexes in coord_pos.itervalues():
+        if len(indexes) < 2:
+            continue
+
+        split_pts |= set(indexes)
+
+    split_pts = sorted(split_pts)
+    split_pairs = zip(split_pts[:-1], split_pts[1:])
+    segments = [LineString(coords[i:j+1]) for i, j in split_pairs]
+    return segments

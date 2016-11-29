@@ -7,7 +7,7 @@ import fiona
 from shapely.geometry import mapping, shape
 from shapely.ops import linemerge
 
-from rlis2osm.utils import zip_path
+from rlis2osm.utils import extract_linear_rings, zip_path
 
 logger = log.getLogger(__name__)
 
@@ -38,12 +38,21 @@ class WayDissolver(object):
                     geom_list.append(geom)
 
                 group_tags = self.ways[group[0]]['properties']
-                dissolve_geom = linemerge(geom_list)
                 dissolve_tags = self._filter_tags(group_tags)
-                dissolve_shp.write(dict(
-                    geometry=mapping(dissolve_geom),
-                    properties=dissolve_tags
-                ))
+                dissolve_geom = linemerge(geom_list)
+
+                if not dissolve_geom.is_simple:
+                    segments = extract_linear_rings(dissolve_geom)
+                    for seg in segments:
+                        dissolve_shp.write(dict(
+                            geometry=seg,
+                            properties=dissolve_tags
+                        ))
+                else:
+                    dissolve_shp.write(dict(
+                        geometry=mapping(dissolve_geom),
+                        properties=dissolve_tags
+                    ))
 
         self.ways.close()
         return dst_path
