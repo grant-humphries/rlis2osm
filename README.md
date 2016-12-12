@@ -1,6 +1,6 @@
 
 # rlis2osm
-![rlis2osm in josm](./images/rlis2osm_in_josm_slim.png?raw=true)
+![rlis2osm in josm](./docs/images/rlis2osm_in_josm_slim.png?raw=true)
 <small>converted RLIS data loaded in the JOSM editor</small>
 
 ### Purpose

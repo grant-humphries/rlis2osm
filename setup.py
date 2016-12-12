@@ -4,9 +4,23 @@ from setuptools import find_packages, setup
 # requirement, but it still makes things faster so it can be moved
 # to the extras_require section
 
+# get __version__ from _version.py
+rlis2osm_version = None
+with open('rlis2osm/_version.py') as version_file:
+    for line in version_file:
+        if line.startswith('__version__'):
+            rlis2osm_version = line.split('=')[1].strip(" '")
+            print line
+            break
+
+print rlis2osm_version
+if not rlis2osm_version:
+    raise ValueError('rlis2osm version counld not be determined')
+
+
 setup(
     name='rlis2osm',
-    version='0.2.0',
+    version=rlis2osm_version,
     author='Grant Humphries',
     dependency_links=[
         'git+https://github.com/grant-humphries/ogr2osm.git#egg=ogr2osm-0.1.0'
@@ -31,6 +45,6 @@ setup(
     ],
     license='GPL',
     long_description=open('README.md').read(),
-    packages=find_packages(exclude=['rlis2osm.tests*']),
+    packages=find_packages(),
     url='https://github.com/grant-humphries/rlis2osm'
 )
