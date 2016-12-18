@@ -1,22 +1,19 @@
 from setuptools import find_packages, setup
 
-# once shapely 1.6 is released numpy will no longer but a project
-# requirement, but it still makes things faster so it can be moved
-# to the extras_require section
-
 # get __version__ from _version.py
 rlis2osm_version = None
-with open('rlis2osm/_version.py') as version_file:
+with open('rlis2osm/__init__.py') as version_file:
     for line in version_file:
         if line.startswith('__version__'):
-            rlis2osm_version = line.split('=')[1].strip(" '")
-            print line
+            rlis2osm_version = line.split('=')[1].strip(" '\n")
             break
 
-print rlis2osm_version
 if not rlis2osm_version:
     raise ValueError('rlis2osm version counld not be determined')
 
+# once shapely 1.6 is released numpy will no longer but a project
+# requirement, but it still makes things faster so it can be moved
+# to the extras_require section
 
 setup(
     name='rlis2osm',
