@@ -10,7 +10,7 @@ with open('rlis2osm/__init__.py') as version_file:
             break
 
 if not rlis2osm_version:
-    raise ValueError('rlis2osm version counld not be determined')
+    raise ValueError('rlis2osm version could not be determined')
 
 # once shapely 1.6 is released numpy will no longer but a project
 # requirement, but it will still increase the speed of execution so it
