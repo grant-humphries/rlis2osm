@@ -207,7 +207,7 @@ def merge_dicts(*dict_args):
 # 'Gardenia St - E St Connector': E will be expanded to East
 # 'Fulton CC Driveway': CC is normally community college, but here it's community center
 # ('ROW', 'Right of Way',),  # 'Fanno Creek Trail at Oregon Electric ROW', issue with type: Row?
-# 'NW St Helens Rd', 'Proposed St Helens - Portland Regional Trail', Street/Saint problem
+# 'NW St Helens Rd', 'Proposed St Helens - Portland Regional Trail': Street/Saint problem
 
 # Unknown Abbreviations
 # SYSTEMNAME

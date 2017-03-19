@@ -4,7 +4,7 @@ from sys import stdout
 from time import time
 
 import fiona
-from shapely.geometry import mapping, shape
+from shapely.geometry import mapping, shape, MultiLineString
 from shapely.ops import linemerge
 
 from rlis2osm.utils import zip_path
@@ -38,12 +38,20 @@ class WayDissolver(object):
                     geom_list.append(geom)
 
                 group_tags = self.ways[group[0]]['properties']
-                dissolve_geom = linemerge(geom_list)
                 dissolve_tags = self._filter_tags(group_tags)
-                dissolve_shp.write(dict(
-                    geometry=mapping(dissolve_geom),
-                    properties=dissolve_tags
-                ))
+
+                # some multi-geometries will still exist after the
+                # linemerge, make all dissolve_geom multi so that each
+                # can be unpacked into single-part
+                dissolve_geom = linemerge(geom_list)
+                if dissolve_geom.geom_type != 'MultiLineString':
+                    dissolve_geom = MultiLineString([dissolve_geom])
+
+                for geom_part in dissolve_geom:
+                    dissolve_shp.write(dict(
+                        geometry=mapping(geom_part),
+                        properties=dissolve_tags
+                    ))
 
         self.ways.close()
         return dst_path

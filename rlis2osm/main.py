@@ -45,7 +45,7 @@ RLIS_SPECIAL = [
 
 
 def expand_translate_combine(paths):
-    expander = StreetNameExpander(special_cases=RLIS_SPECIAL)
+    expander = StreetNameExpander(special=RLIS_SPECIAL)
     tc_callback = customize_titlecase()
 
     street_trans = StreetTranslator()
@@ -177,16 +177,18 @@ def process_options(args):
         help='write location of .osm file'
     )
     parser.add_argument(
-        '-r', '--refresh',
+        '-e', '--use_existing',
         action='store_true',
-        help='if flag is supplied the latest rlis data will be downloaded '
-             'overwriting any existing files at the same path'
+        help='suppress download of RLIS and use data that exists locally on '
+             'disk, the -s flag must point to the location the data (and this '
+             'will be the case by default if the data comes from previous runs '
+             'of this script)'
     )
     parser.add_argument(
         '-s', '--source_directory',
         default=None,
         dest='src_dir',
-        help='location of source rlis shapefiles if they exist, else write '
+        help='location of source RLIS shapefiles if they exist, else write '
              'location for downloaded rlis data'
     )
 
@@ -233,7 +235,7 @@ def main():
     paths = data.main(
         src_dir=opts.src_dir,
         dst_dir=opts.dst_dir,
-        refresh=opts.refresh)
+        refresh=(not opts.use_existing))
 
     logger.info('expanding abbreviated street names, translating rlis '
                 'attributes to osm tags and combining street, trail and bike '

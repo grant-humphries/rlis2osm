@@ -25,6 +25,7 @@ class StreetTranslator(object):
         'tertiary': (1450, 5402, 5500, 5501),
         'tertiary_link': (1521,),
         'residential': (1500, 1550, 1700, 1740, 2000, 8224),
+        'road': (0,),
         'service': (1560, 1600, 1750, 1760, 1800, 1850),
         'track': (9000,)}
     HIGHWAY_MAP = {i: k for k, v in REV_HIGHWAY_MAP.iteritems() for i in v}
