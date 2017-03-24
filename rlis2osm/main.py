@@ -19,7 +19,7 @@ from rlis2osm.utils import zip_path, zip_shapefile
 
 RLIS_ENCODING = 'cp1252'
 RLIS_EPSG = 2913
-RLIS_SPECIAL = [
+RLIS_ABBREVS = [
     # names
     ('AM', 'Archibald M', 'fm'),  # 'AM Kennedy'
     ('HM', 'Howard M', 'fm'),  # 'HM Terpenning'
@@ -39,14 +39,38 @@ RLIS_SPECIAL = [
     ('WES', 'Westside Express Service', 'a'),
     ('WSU', 'Washington State University', 'a'),
 
-    # rlis specific
+    # RLIS specific
     ('CO', 'County', 'f')
 ]
 
+RLIS_OVERRIDES = {
+    # section 1 --> streets, section 2 --> trails
+    'FT OF N HOLLADAY': 'Foot of North Holladay',  # 'N' won't expand
+    'MT ST HELENS': 'Mount Saint Helens',  # 'ST' maps to 'Street' here
+    'OLD ST HELENS': 'Old Saint Helens',  # 'ST' maps to 'Street' here
+    'US GRANT': 'Ulysses S Grant',  # 'US' maps to 'United States'
+
+    # 'E' maps to 'East' here
+    'Gardenia St - E St Connector':
+        'Gardenia Street - E Street Connector',
+    # 'CC' maps to 'Community College'
+    'Fulton CC Driveway':
+        'Fulton Community Center Driveway',
+    # 'ROW' isn't expanded here
+    'Fanno Creek Trail at Oregon Electric ROW':
+        'Fanno Creek Trail at Oregon Electric Right of Way',
+    # 'St' maps to 'Street' in these positions
+    'NW St Helens Rd':
+        'Northwest Saint Helens Rd',
+    'Proposed St Helens - Portland Regional Trail':
+        'Proposed Saint Helens - Portland Regional Trail'
+}
+
 
 def expand_translate_combine(paths):
-    expander = StreetNameExpander(special=RLIS_SPECIAL)
     tc_callback = customize_titlecase()
+    expander = StreetNameExpander(
+        custom_abbrevs=RLIS_ABBREVS, overrides=RLIS_OVERRIDES)
 
     street_trans = StreetTranslator()
     trail_trans = TrailsTranslator()
@@ -83,9 +107,9 @@ def expand_translate_combine(paths):
             attrs['FTYPE'] = expander.type(attrs['FTYPE'])
             attrs['DIRECTION'] = expander.direction(attrs['DIRECTION'])
 
-            # street names in rlis are in all caps and thus need to be
-            # title-cased, the titlecase package has special handling
-            # for all caps text and thus needs to be lower cased
+            # street names in rlis are in all caps but need to be title
+            # cased, the `titlecase` package has special handling for
+            # all caps text so lowercase the input
             tags = street_trans.translate(attrs)
             name_tag = (tags['name'] or '').lower()
             tags['name'] = titlecase(name_tag, callback=tc_callback)

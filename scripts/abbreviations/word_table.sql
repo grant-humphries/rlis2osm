@@ -6,39 +6,43 @@ create table words as
     --record of position in the original string
     with dash_split as (
         select distinct
-            phrase, streetname as fullname, delimiter_pos,
+            phrase, streetname as full_name, phrase_pos,
             'streetname'::text as field
         from streets, regexp_split_to_table(streetname, '\s*-+\s*')
-            with ordinality x(phrase, delimiter_pos)
+            with ordinality x(phrase, phrase_pos)
                 union all
         select distinct
-            phrase, trailname, delimiter_pos, 'trailname'
+            phrase, trailname, phrase_pos, 'trailname'
         from trails, regexp_split_to_table(trailname, '\s*-+\s*')
-            with ordinality x(phrase, delimiter_pos)
+            with ordinality x(phrase, phrase_pos)
                 union all
         select distinct
-            phrase, sharedname, delimiter_pos, 'sharedname'
+            phrase, sharedname, phrase_pos, 'sharedname'
         from trails, regexp_split_to_table(sharedname, '\s*-+\s*')
-            with ordinality x(phrase, delimiter_pos)
+            with ordinality x(phrase, phrase_pos)
                 union all
         select distinct
-            phrase, systemname, delimiter_pos, 'systemname'
+            phrase, systemname, phrase_pos, 'systemname'
         from trails, regexp_split_to_table(systemname, '\s*-+\s*')
-            with ordinality x(phrase, delimiter_pos)
+            with ordinality x(phrase, phrase_pos)
                 union all
         select distinct
-            phrase, agencyname , delimiter_pos, 'agencyname'
+            phrase, agencyname , phrase_pos, 'agencyname'
         from trails, regexp_split_to_table(agencyname, '\s*-+\s*')
-            with ordinality x(phrase, delimiter_pos))
+            with ordinality x(phrase, phrase_pos)
+    )
 
     --split phrases at spaces and forward slash with record of each
     --word position in the phrase
     select
-        word, fullname, separator_pos, delimiter_pos,
-        char_length(word) as word_length, field
+        word, full_name, word_pos, phrase_pos, char_length(word) as word_len,
+        array_length(regexp_split_to_array(phrase, '[\s/]+'), 1) as phrase_len,
+        field
     from dash_split, regexp_split_to_table(phrase, '[\s/]+')
-        with ordinality x(word, separator_pos);
+        with ordinality x(word, word_pos);
 
-create index word_ix on words using BTREE (word);
-create index field_ix on words using BTREE (field);
-create index len_ix on words using BTREE (word_length);
+alter table words add column id serial primary key;
+
+create index word_ix on words using btree (word);
+create index field_ix on words using btree (field);
+create index word_len_ix on words using btree (word_len);

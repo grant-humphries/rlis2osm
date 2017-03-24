@@ -2,6 +2,42 @@ import re
 
 
 class StreetNameExpander(object):
+    """Expand abbreviations in a supplied street names string
+
+    Provides methods to expand both parsed and unparsed street names.
+
+    Attributes:
+        delimiter (str): Character that divides what two distinct
+            street names that have been combined in a single descriptor
+        separators (tup): Characters between words that are a part of a
+            single street name
+        custom_abbrevs (list): A list of tuples that contain custom
+            abbreviations and their corresponding full names that will
+            be added to the default expansions used by the `basename`
+            method . The tuples should have three elements in this
+            order: the abbreviation, the full name and the positions
+            within a name that the abbreviated words should be
+            expanded. Those positions are represented by the following
+            strings:
+                'a' = any
+                'f' = first
+                'm' = middle
+                'l' = last
+            These characters can also be combined to indicate multiple
+            positions, such as 'fm' for first and middle, order does
+            not matter when multiple characters are used
+        overrides (dict):
+            Expansions are performed based on the characters that
+            comprise the abbreviation and the position of the
+            abbreviation in the street name that it belongs to. Because
+            this logic is simple it will occasionally fail to do what
+            the user intends.  The `overrides` parameter allows the user
+            to supply a full, raw street name and it expanded
+            counterpart as key value pairs and if the value supplied to
+            the `basename` method matches an override key it will be
+            expanded to its value and bypass the default expansion logic
+    """
+
     DIRECTION = {
         'N': 'North',
         'NE': 'Northeast',
@@ -58,8 +94,9 @@ class StreetNameExpander(object):
         'WY': 'Way'
     }
 
-    # general for United States
-    # columns are abbreviation, expansion, allows positions
+    # abbreviations here are common to the United States, see the
+    # descriptions of the 'custom_abbrevs' attribute in the class
+    # docstring for an explanation of this object
     BASENAME = [
         ('ASSN', 'Association', 'a'),
         ('CC', 'Community College', 'ml'),
@@ -87,30 +124,26 @@ class StreetNameExpander(object):
         ('VA', 'Veteran Affairs', 'f')
     ]
 
-    def __init__(self, delimiter='-', separators=(' ', '/'), special=None):
-        """In this context a delimiter is a character that divides what
-        could be two distinct names that have been combined into one,
-        separators are characters between words that together form a
-        single name
-        """
-
+    def __init__(self, delimiter='-', separators=(' ', '/'),
+                 custom_abbrevs=None, overrides=None):
         self.delimiter = delimiter
         self.separators = separators
-        self.special_cases = special
+        self.custom_abbrevs = custom_abbrevs
+        self.overrides = overrides
         self.expander = self._prep_expander()
 
     def _prep_expander(self):
         combo_dir = {a: x for a, x in self.DIRECTION.iteritems() if len(a) > 1}
         
-        if self.special_cases:
-            self.BASENAME += self.special_cases
+        if self.custom_abbrevs:
+            self.BASENAME += self.custom_abbrevs
 
         # first, middle and last refer to the position of the word in
         # name that is being expanded
-        f_dict, m_dict, l_dict = {}, {}, {}
+        f_dict, m_dict, l_dict = dict(), dict(), dict()
 
+        # a = any, f = first, m = middle, l = last
         for k, v, placement in self.BASENAME:
-            # a = any, f = first, m = middle, l = last
             for p in placement:
                 if p == 'a':
                     f_dict[k] = v
@@ -140,6 +173,12 @@ class StreetNameExpander(object):
         if not name:
             return name
 
+        if self.overrides:
+            overridden = self.overrides.get(name)
+
+            if overridden:
+                return overridden
+
         # remove any periods and split at delimiter
         parts = name.replace('.', '').split(self.delimiter)
         part_list = list()
@@ -147,7 +186,7 @@ class StreetNameExpander(object):
         for p in parts:
             word_list = list()
             split_regex = '([{}]+)'.format(''.join(self.separators))
-            words = re.split(split_regex, p.strip())  # remove edge whitespace
+            words = re.split(split_regex, p.strip())  # strip whitespace
             num_words = len([w for w in words if w and w not in self.separators])
             word_pos = 1
 
@@ -194,34 +233,3 @@ def merge_dicts(*dict_args):
         master_dict.update(dict_)
 
     return master_dict
-
-
-# Special Case Incorrect Expansions
-# STREETNAME
-# 'FT OF N HOLLADAY': 'N' won't be expanded to North
-# 'US GRANT': should be Ulysses S; will be United States
-# 'MT ST HELENS', 'OLD ST HELENS' - 'ST' will be 'Street' not 'Saint'
-# 'SW MAX CT' - will be MAX will be Metropolitan Area Express
-
-# TRAILNAME
-# 'Gardenia St - E St Connector': E will be expanded to East
-# 'Fulton CC Driveway': CC is normally community college, but here it's community center
-# ('ROW', 'Right of Way',),  # 'Fanno Creek Trail at Oregon Electric ROW', issue with type: Row?
-# 'NW St Helens Rd', 'Proposed St Helens - Portland Regional Trail': Street/Saint problem
-
-# Unknown Abbreviations
-# SYSTEMNAME
-# 'PBH Incorporated Trails'
-# TRAILNAME
-# 'FAOF Canberra Trail'
-# 'TBBV Path'
-
-# Typo Fixes - these should be reported to Metro
-# SYSTEMNAME
-# 'Chiefain Dakota Greenway Trails', 'Chieftain'
-# 'Tanasbource Villas Trail', 'Tanasbourne'
-# 'Southwest Portland Wilamette Greenway Trail', 'Willamette'
-# TRAILNAME
-# 'Andrea Street - Mo Ccasin Connector', 'Moccasin'
-# 'West Unioin Road - 151st Place Connector', 'Union'
-# '106th - Mll Ct Connector', 'Mll' should be Mill
