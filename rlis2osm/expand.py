@@ -55,7 +55,6 @@ class StreetNameExpander(object):
         'WB': 'Westbound'
     }
 
-    # these will appear as the end of the street name only
     TYPE = {
         'ALY': 'Alley',
         'AV': 'Avenue',
@@ -198,10 +197,10 @@ class StreetNameExpander(object):
                     uw = w.upper()
 
                     # first word
-                    if word_pos == 1 and num_words > 2:
+                    if word_pos == 1 and num_words > 1:
                         w = self.expander['first'].get(uw, w)
                     # last word
-                    elif word_pos == num_words and num_words > 2:
+                    elif word_pos == num_words and num_words > 1:
                         w = self.expander['last'].get(uw, w)
                     # middle word(s)
                     else:

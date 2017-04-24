@@ -50,6 +50,8 @@ RLIS_OVERRIDES = {
     'OLD ST HELENS': 'Old Saint Helens',  # 'ST' maps to 'Street' here
     'US GRANT': 'Ulysses S Grant',  # 'US' maps to 'United States'
 
+    '(^|\s)E St($|\s)': 'E Street',
+
     # 'E' maps to 'East' here
     'Gardenia St - E St Connector':
         'Gardenia Street - E Street Connector',

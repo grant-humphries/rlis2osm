@@ -3,16 +3,16 @@
 set -e
 shopt -s expand_aliases
 
-OSPN_EPSG=2913
 PGDBNAME='rlis_abbr_test'
 PGHOST='localhost'
 PGCLIENTENCODING='UTF8'
-DATASETS=( 'streets' 'trails' 'bike_routes' )
-PROJECT_DIR="$( cd $(dirname ${0}); dirname $(dirname $(pwd -P)) )"
+
+ospn_espg=2913
+project_dir="$( cd $(dirname ${0}); dirname $(dirname $(pwd -P)) )"
 
 # cygwin-psql can't read file paths starting like '/cygdrive/...'
 if [[ "${OSTYPE}" == 'cygwin' ]]; then
-    PROJECT_DIR="$( cygpath -w ${PROJECT_DIR} )"
+    project_dir="$( cygpath -w ${project_dir} )"
 fi
 
 # process command line options
@@ -25,7 +25,7 @@ while getopts ':p:u:' opt; do
             PGUSER="${OPTARG}"
             ;;
         d)
-            DATA_DIR="${OPTARG}"
+            data_dir="${OPTARG}"
             ;;
     esac
 done
@@ -44,11 +44,11 @@ export PGPASSWORD
 alias psql="psql -U ${PGUSER} -h ${PGHOST}"
 
 # user didn't supply data dir assume its in the project dir
-if [[ -z "${DATA_DIR}" ]]; then
-    DATA_DIR="${PROJECT_DIR}/data"
+if [[ -z "${data_dir}" ]]; then
+    data_dir="${project_dir}/data"
 fi
 
-UNZIPPED_DIR="${DATA_DIR}/unzipped"
+UNZIPPED_DIR="${data_dir}/unzipped"
 
 
 create_postgis_db() {
@@ -61,13 +61,15 @@ create_postgis_db() {
     fi
 }
 
-load_data() {
-    for ds in "${DATASETS[@]}"; do
-        ds_path="${DATA_DIR}/${ds}.shp"
+load_rlis_data() {
+    local rlis_datasets=( 'streets' 'trails' 'bike_routes' )
+
+    for ds in "${rlis_datasets[@]}"; do
+        local ds_path="${data_dir}/${ds}.shp"
 
         if [[ ! -f "${ds_path}" ]]; then
-            zip_path="${ds_path%.*}.zip"
-            unzip_path="${UNZIPPED_DIR}/${ds}.shp"
+            local zip_path="${ds_path%.*}.zip"
+            local unzip_path="${UNZIPPED_DIR}/${ds}.shp"
 
             if [[ -f "${zip_path}" ]]; then
                 mkdir -p "${UNZIPPED_DIR}"
@@ -81,20 +83,29 @@ load_data() {
 
         # postgres copy command (invoked by -D option) can't handle literal
         # newlines so sed replaces them with newline characters
-        shp2pgsql -d -s "${OSPN_EPSG}" -I -D -W 'LATIN1' "${ds_path}" \
+        shp2pgsql -d -s "${ospn_espg}" -I -D -W 'LATIN1' "${ds_path}" \
             | sed 's/\n/\\n/g' | psql -d "${PGDBNAME}"
     done
 }
 
 create_word_table() {
-    abbr_sql="${PROJECT_DIR}/scripts/abbreviations/word_table.sql"
+    local abbr_sql="${project_dir}/scripts/abbreviations/create_word_table.sql"
     psql -d "${PGDBNAME}" -v ON_ERROR_STOP=1 -f "${abbr_sql}"
+}
+
+load_expanded_data () {
+    local src_name='dissolved'
+    local src_path="${data_dir}/${src_name}.shp"
+
+    shp2pgsql -d -s "${ospn_espg}" -I -D "${src_path}" 'expanded_names' \
+        | psql -d "${PGDBNAME}"
 }
 
 main() {
     create_postgis_db
-    load_data
+    load_rlis_data
     create_word_table
+    load_expanded_data
 }
 
 main
